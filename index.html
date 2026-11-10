@@ -533,7 +533,21 @@ function mkPl(nm){
   dl();
   const lab=()=>{q("t").textContent=(st.a&&st.h&&st.m!=="")?(st.a==="AM"?"오전 ":"오후 ")+st.h+":"+st.m:"시각";};
   const lim=()=>{if(!mn||q("d").value!==mn.slice(0,10))return null;return Number(mn.slice(11,13))*60+Number(mn.slice(14,16));};
-  const okT=t=>{const l=lim();return l===null||(w.strict?t>l:t>=l);};
+  // 오늘 날짜의 시작 시각은 현재 시각(초가 지나갔다면 다음 분)보다 이전으로 선택할 수 없다.
+  const todayKST=()=>new Date().toLocaleDateString("sv-SE",{timeZone:TZ});
+  const nowMinuteKST=()=>{
+    const parts=new Intl.DateTimeFormat("en-GB",{timeZone:TZ,hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(new Date());
+    const v={};parts.forEach(p=>v[p.type]=p.value);
+    return Number(v.hour)*60+Number(v.minute)+(Number(v.second)>0?1:0);
+  };
+  const okT=t=>{
+    let l=lim();
+    if(q("d").value===todayKST()){
+      const n=nowMinuteKST();
+      l=l===null?n:Math.max(l,n);
+    }
+    return l===null||(w.strict?t>l:t>=l);
+  };
   const H24=()=>(Number(st.h)%12)+(st.a==="PM"?12:0);
   const chips=(arr,cur,ok)=>arr.map(x=>`<button type="button" class="chip${String(x[0])===cur?" on":""}" data-v="${x[0]}"${ok&&!ok(x[0])?" disabled":""}>${x[1]}</button>`).join("");
   function show(n){
@@ -547,6 +561,8 @@ function mkPl(nm){
   pan.addEventListener("click",e=>{const c=e.target.closest("[data-v]");if(!c)return;const v=c.dataset.v;
     if(step==="a"){st.a=v;show("h");}else if(step==="h"){st.h=v;show("m");}else{st.m=v;hide();lab();w.dispatchEvent(new Event("change",{bubbles:true}));}});
   q("d").addEventListener("change",()=>{dl();hide();try{q("d").blur();}catch(e){}});
+  // 날짜 선택기에서도 오늘 이전 날짜를 막는다.
+  q("d").min=new Date().toLocaleDateString("sv-SE",{timeZone:TZ});
   q("d").addEventListener("click",()=>{try{if(!q("d").disabled&&q("d").showPicker)q("d").showPicker();}catch(e){}});
   q("t").addEventListener("click",()=>{if(w.onOpen)w.onOpen();if(step)hide();else show("a");});
   Object.defineProperty(w,"value",{get(){const d=q("d").value;if(!d||!st.a||!st.h||st.m==="")return"";let H=Number(st.h)%12;if(st.a==="PM")H+=12;return d+"T"+String(H).padStart(2,"0")+":"+st.m;},
