@@ -218,7 +218,7 @@ function connDefault(){
   const c=getCfg(),p=pendingN();
   let h=c?'<span class="ok">● 시트로 전송 중 (보내기만 함)</span>'+(p?' <span class="warn">· 전송 대기 '+p+'건</span>':''):'<span class="warn">● 이 기기에만 저장됩니다 (시트 미연결)</span>';
   if(lastErr)h+=' <span class="err">· '+esc(lastErr)+'</span>';
-  if(viewKey)h+=' <span class="ok">· 전체 보기 중 ('+remoteEv.length+'건)</span>';
+  if(viewKey)h+=' <span class="ok">· 전체 보기 중 ('+sessions().length+'건)</span>';
   if(adminOn())h+=' <span class="warn">· 관리자 모드(삭제 가능, 10분)</span>';
   setConn(h);$("viewOff").classList.toggle("hidden",!viewKey);
 }
@@ -469,7 +469,7 @@ async function openAdmin(){
   buildLabelEditor();
   $("main").classList.add("hidden");$("fab").classList.add("hidden");$("admin").classList.remove("hidden");
   const v=await verify();
-  $("anchor").value="[기록 무결성 요약]\n기준시각: "+fmt(Date.now())+"\n기록 수: "+v.n+" / 항목 수: "+sessions().length+"\n최종 해시: "+v.head+"\n체인 검사: "+(v.bad.length?"이상 있음":"정상");
+  $("anchor").value="[기록 무결성 요약]\n기준시각: "+fmt(Date.now())+"\n내부 기록 줄 수: "+v.n+" / 항목 수: "+sessions().length+"\n최종 해시: "+v.head+"\n체인 검사: "+(v.bad.length?"이상 있음":"정상");
 }
 $("closeAdmin").onclick=()=>{$("admin").classList.add("hidden");$("main").classList.remove("hidden");$("fab").classList.remove("hidden");connDefault();render();};
 function buildLabelEditor(){$("lbList").innerHTML=LSPEC.map(x=>`<label>${esc(x[1])}</label><input data-lk="${x[0]}" value="${esc(L(x[0]))}">`).join("");}
@@ -492,12 +492,12 @@ $("cfgOff").onclick=()=>{localStorage.removeItem(CFGKEY);viewKey=null;remoteEv=[
 $("viewBtn").onclick=async()=>{
   const k=$("viewPw").value;const m=$("viewMsg");if(!getCfg()){m.innerHTML='<span class="err">먼저 시트에 연결하세요.</span>';return;}if(!k){return;}
   m.textContent="불러오는 중…";
-  try{viewKey=k;await loadAll();$("viewPw").value="";lastErr="";connDefault();render();m.innerHTML='<span class="ok">'+remoteEv.length+'건을 불러왔습니다. 관리 닫기를 누르면 전체가 보입니다.</span>';}
+  try{viewKey=k;await loadAll();$("viewPw").value="";lastErr="";connDefault();render();m.innerHTML='<span class="ok">'+remoteEv.length+'줄을 불러왔습니다. 관리 닫기를 누르면 전체가 보입니다.</span>';}
   catch(e){viewKey=null;remoteEv=[];connDefault();m.innerHTML='<span class="err">실패: '+esc(e.message)+'</span>';}
 };
 function viewOff(){viewKey=null;remoteEv=[];connDefault();render();$("viewMsg").innerHTML='<span class="ok">전체 보기를 해제했습니다.</span>';}
 $("viewOff").onclick=viewOff;$("viewOff2").onclick=viewOff;
-$("verifyBtn").onclick=async()=>{const v=await verify();$("verifyMsg").innerHTML=v.bad.length?'<span class="err">이상 발견: '+v.bad.map(esc).join(", ")+'</span>':'<span class="ok">정상 — 기록 '+v.n+'건 모두 연결·내용 일치'+(v.red?' (삭제된 기록 '+v.red+'건은 내용 없이 연결만 확인)':'')+'</span>';};
+$("verifyBtn").onclick=async()=>{const v=await verify();$("verifyMsg").innerHTML=v.bad.length?'<span class="err">이상 발견: '+v.bad.map(esc).join(", ")+'</span>':'<span class="ok">정상 — 내부 기록 '+v.n+'줄 모두 연결·내용 일치'+(v.red?' (삭제된 '+v.red+'줄은 내용 없이 연결만 확인)':'')+'</span>';};
 $("anchorBtn").onclick=async()=>{try{await navigator.clipboard.writeText($("anchor").value);$("anchorMsg").innerHTML='<span class="ok">복사했습니다.</span>';}catch(e){$("anchorMsg").innerHTML='<span class="warn">자동 복사가 막혀 있습니다. 위 글을 직접 복사하세요.</span>';}};
 $("backupBtn").onclick=()=>{download(L("pdfFile")+"_백업_"+new Date().toLocaleDateString("sv-SE",{timeZone:TZ})+".json",new Blob([JSON.stringify(events)],{type:"application/json"}));$("anchorMsg").innerHTML='<span class="ok">백업 파일을 저장했습니다.</span>';};
 $("restoreFile").onchange=async ev=>{
