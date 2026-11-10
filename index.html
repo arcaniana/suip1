@@ -238,6 +238,15 @@ let events=[],remoteEv=[],viewKey=null,DEV="",authData=null,busy=false,filterBy=
 const drafts={};
 let plans=[];try{plans=JSON.parse(localStorage.getItem("counsel_plans_v1")||"[]");}catch(e){plans=[];}
 const savePlans=()=>{try{localStorage.setItem("counsel_plans_v1",JSON.stringify(plans));}catch(e){}};
+function restorePlansFromEvents(){
+  const map=new Map();
+  events.filter(e=>!e.del).sort((a,b)=>a.seq-b.seq).forEach(e=>{
+    if(e.type==="plan"){try{const p=JSON.parse(e.planned||"{}");map.set(e.sid,Object.assign({id:e.sid,by:e.by},p));}catch(x){}}
+    else if(e.type==="cancelPlan")map.delete(e.sid);
+    else if(e.type==="start"||e.type==="end")map.delete(e.sid);
+  });
+  if(map.size){plans=Array.from(map.values());savePlans();}
+}
 const FORMKEY="counsel_form_v1",MENUKEY="counsel_menu_v1",PDFKEY="counsel_pdfsel_v1";
 let formCfg={who:[],topic:[],fields:[]},menuCfg={hide:{},secs:[]},pdfSel={};
 try{Object.assign(formCfg,JSON.parse(localStorage.getItem(FORMKEY)||"{}"));Object.assign(menuCfg,JSON.parse(localStorage.getItem(MENUKEY)||"{}"));pdfSel=JSON.parse(localStorage.getItem(PDFKEY)||"{}");}catch(e){}
@@ -255,7 +264,7 @@ const L=k=>LB[k]||DEFLB[k];
 document.addEventListener("click",e=>{const h=e.target.closest("[data-tg]");if(!h)return;const k=h.dataset.tg;tgOpen[k]=!tgOpen[k];render();});
 function applyLabels(){document.querySelectorAll("[data-l]").forEach(el=>{el.textContent=L(el.dataset.l);});document.title=L("title");$("fab").title=L("newTop");}
 const KEY="counsel_records_v3",OLDKEY="counsel_records_v2",DEVKEY="counsel_dev_v1",CFGKEY="counsel_cfg_v1",TTLKEY="counsel_title_v1",BYKEY="counsel_by_v1";
-function load(){try{let r=JSON.parse(localStorage.getItem(KEY)||"null");if(!r){const o=JSON.parse(localStorage.getItem(OLDKEY)||"{}");r={auth:o.auth||null,events:[]};}authData=r.auth||null;events=r.events||[];return true;}catch(e){return false;}}
+function load(){try{let r=JSON.parse(localStorage.getItem(KEY)||"null");if(!r){const o=JSON.parse(localStorage.getItem(OLDKEY)||"{}");r={auth:o.auth||null,events:[]};}authData=r.auth||null;events=r.events||[];restorePlansFromEvents();return true;}catch(e){return false;}}
 function save(){localStorage.setItem(KEY,JSON.stringify({auth:authData,events}));}
 async function setupManifest(){
   try{
@@ -308,6 +317,7 @@ async function sync(quiet){
   try{await flush();}catch(e){}
   if(getCfg()){try{const j=await remote("deleted",{dev:DEV});(j.sids||[]).forEach(redactLocal);}catch(e){}}
   if(getCfg()){try{const j=await remote("getcfg");if(j.cfg){const n=Object.assign({who:[],topic:[],fields:[],hide:{}},j.cfg);n.hide=n.hide||{};if(JSON.stringify(n)!==JSON.stringify(formCfg)){formCfg=n;lsSet(FORMKEY,formCfg);buildForm(true);}}}catch(e){}}
+  if(getCfg()){try{const j=await remote("planids");if(j.ok&&Array.isArray(j.ids)){const keep=new Set(j.ids);plans=plans.filter(p=>keep.has(p.id));savePlans();}}catch(e){}}
   if(viewKey){try{await loadAll();}catch(e){lastErr="불러오기 실패: "+e.message;}}
   connDefault();
   if(allEv().length!==sig0||!quiet)softRender();
@@ -334,6 +344,8 @@ function boot(){
   $("app").classList.remove("hidden");render();connDefault();sync();
   setInterval(()=>{if(!document.hidden)sync(true);},15000);
   setInterval(tick,1000);
+  window.addEventListener("online",()=>{sync(false);});
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden){sync(true);}});
 }
 function gate(t){
   gateTarget=t||"admin";$("lockTitle").textContent=gateTarget==="pdf"?"🔒 "+L("pdfMenu"):"🔒 관리 메뉴";
@@ -389,6 +401,11 @@ async function append(p){
   }catch(err){notify("저장 실패: "+(err.message||err));return false;}
   finally{busy=false;}
 }
+// 예정 시간 자동 실행: 앱이 열려 있으면 오프라인에서도 로컬 기록에 정확한 예정 시각으로 저장한다.
+const planRunning=new Set();
+// 자동 시작·종료는 기기가 아닌 Google Apps Script 서버 트리거가 처리합니다.
+async function runDuePlans(){ return; }
+
 async function verify(){
   const list=allEv(),g={},bad=[],heads=[];let red=0;
   list.forEach(e=>{(g[e.dev||"?"]=g[e.dev||"?"]||[]).push(e);});
@@ -474,7 +491,7 @@ function render(){
     <textarea data-draft="m:${s.sid}" placeholder="${esc(L("memoPh"))}" style="margin-top:8px">${esc(drafts["m:"+s.sid]||"")}</textarea>
     <div class="row" style="margin-top:8px"><button class="sec" data-act="memo" data-sid="${s.sid}">${esc(L("memoBtn"))}</button><button class="bad" data-act="end" data-sid="${s.sid}">${esc(L("end"))}</button>${adminOn()?`<button class="sm bad" data-act="del" data-sid="${s.sid}" style="margin-left:auto">삭제</button>`:""}</div></div>`).join("")||'<div class="k" style="margin:0 2px">없음</div>';
   $("planList").innerHTML=plans.filter(p=>!filterBy||p.by===filterBy).slice().sort((a,b)=>String(a.planned).localeCompare(String(b.planned))).map(p=>{const s={sid:p.id,topic:p.topic};return `<div class="card">
-    <div class="row sp"><span class="pill plan">예정 ${esc(fmtP(p.planned)||"(시각 미정)")}${p.plannedEnd?" ~ "+esc(fmtP(p.plannedEnd).slice(p.planned&&p.plannedEnd.slice(0,10)===p.planned.slice(0,10)?11:0)):""}</span><span class="k">참고용 · 이 기기에만 있음</span></div>
+    <div class="row sp"><span class="pill plan">예정 ${esc(fmtP(p.planned)||"(시각 미정)")}${p.plannedEnd?" ~ "+esc(fmtP(p.plannedEnd).slice(p.planned&&p.plannedEnd.slice(0,10)===p.planned.slice(0,10)?11:0)):""}</span><span class="k">자동 시작·종료 예정</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(p.who)}${extraTxt(p.x)?" · "+esc(extraTxt(p.x)):""}</div>
     <div class="row" style="margin-top:8px"><button class="sm" data-act="startPlan" data-sid="${p.id}">${esc(L("startPlan"))}</button><button class="sm sec" data-act="cancelPlan" data-sid="${p.id}">${esc(L("cancelPlan"))}</button></div></div>`;}).join("")||'<div class="k" style="margin:0 2px">없음</div>';
@@ -592,8 +609,18 @@ $("planBtn").onclick=async()=>{
   if(!f.who&&!formCfg.hide.who){notify("대상을 입력하세요.");return;}
   const ts=slots();if(!ts.length||ts.some(x=>!x.s||!x.e)){notify("예정의 시작과 종료를 모두 입력하세요.");return;}
   for(let i=0;i<ts.length;i++)if(ts[i].e<=ts[i].s||(i&&ts[i].s<ts[i-1].e)){notify("시작·종료 순서를 확인하세요.");return;}
-  const xo=extrasObj();ts.forEach(p=>plans.push({id:newSid(),by,who:f.who,topic:f.topic,planned:p.s,plannedEnd:p.e,x:xo}));savePlans();
-  clearForm();render();
+  const xo=extrasObj();let allSynced=true;
+  for(const slot of ts){
+    const p={id:newSid(),by,who:f.who,topic:f.topic,planned:slot.s,plannedEnd:slot.e,x:xo};
+    if(!await append({type:"plan",sid:p.id,by,who:p.who,topic:p.topic,planned:JSON.stringify(p)})){
+      notify("예정 저장에 실패했습니다. 입력 내용은 유지됩니다.");return;
+    }
+    await flush();
+    const saved=events.find(e=>e.sid===p.id&&e.type==="plan");
+    plans.push(p);
+    if(!saved||!saved.srv)allSynced=false;
+  }
+  savePlans();clearForm();render();notify(allSynced?"예정이 구글 서버에 저장되었습니다. 기기가 꺼져 있어도 자동 시작·종료됩니다.":"예정은 기기에 저장됐지만 서버 동기화가 안 됐습니다. 인터넷 연결 후 동기화되어야 기기가 꺼져도 자동 실행됩니다.");
 };
 $("startBtn").onclick=async()=>{
   const by=getBy();if(!by)return;const f=formVals();
@@ -637,9 +664,9 @@ $("main").addEventListener("click",async ev=>{
     if(confirm("종료할까요?"))append({type:"end",sid,by});
   }else if(act==="startPlan"){
     const p=plans.find(x=>x.id===sid);
-    if(p&&await append({type:"start",sid:newSid(),by,who:p.who,topic:p.topic,planned:xJson(p.x)})){plans=plans.filter(x=>x.id!==sid);savePlans();render();}
+    if(p&&await append({type:"start",sid:p.id,at:Date.now(),by,who:p.who,topic:p.topic,planned:xJson(p.x)})){plans=plans.filter(x=>x.id!==sid);savePlans();render();}
   }else if(act==="cancelPlan"){
-    if(confirm("예정을 삭제할까요?")){plans=plans.filter(x=>x.id!==sid);savePlans();render();}
+    if(confirm("예정을 삭제할까요?")){await append({type:"cancelPlan",sid,by});plans=plans.filter(x=>x.id!==sid);savePlans();render();}
   }
 });
 
