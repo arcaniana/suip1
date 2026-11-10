@@ -22,7 +22,7 @@
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;font-size:15px;line-height:1.5}
 .wrap{max-width:760px;margin:0 auto;padding:16px 14px calc(60px + env(safe-area-inset-bottom))}
 h1{font-size:20px;margin:6px 0 2px;user-select:none;cursor:default}
-h3{font-size:14px;margin:16px 2px 6px;color:var(--mute);font-weight:500}
+h3.tg{cursor:pointer;user-select:none}h3{font-size:14px;margin:16px 2px 6px;color:var(--mute);font-weight:500}
 .sub{color:var(--mute);font-size:13px;margin-bottom:12px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px}
 label{display:block;font-size:12px;color:var(--mute);margin:8px 0 3px}
@@ -124,8 +124,8 @@ input,select,textarea{font-size:16px}
     </div>
 
     <h3 data-l="live" id="hLive">진행 중</h3><div id="liveList"></div>
-    <h3 data-l="planH" id="hPlan">예정</h3><div id="planList"></div>
-    <h3 data-l="allH" id="hAll">전체 기록 (모든 입력자)</h3>
+    <h3 id="hPlan" class="tg" data-tg="plan">예정</h3><div id="planList"></div>
+    <h3 id="hAll" class="tg" data-tg="all">기록</h3>
     <div class="fl" id="byFilter"></div>
     <div id="doneList"></div>
     <div id="customSecs"></div>
@@ -242,6 +242,7 @@ try{Object.assign(formCfg,JSON.parse(localStorage.getItem(FORMKEY)||"{}"));Objec
 formCfg.fields=formCfg.fields||[];formCfg.who=formCfg.who||[];formCfg.topic=formCfg.topic||[];menuCfg.hide=menuCfg.hide||{};menuCfg.secs=menuCfg.secs||[];
 const lines=t=>String(t||"").split(/\n/).map(x=>x.trim()).filter(Boolean);
 const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+const tgOpen={plan:false,all:false};
 let pdfKey=null,pdfLoaded=false,gateTarget="admin";
 let adminUntil=0,adminWas=false;const adminOn=()=>Date.now()<adminUntil;
 const LSPEC=[["title","화면 제목","기록 보관함"],["by","입력자 칸 이름","입력자 (내 이름)"],["newTop","새 항목 버튼","＋ 새 기록 / 시간 추가"],["newTitle","새 항목 창 제목","새 기록"],["who","대상 칸 이름","대상 (이니셜·번호 등)"],["topic","제목 칸 이름","제목"],["planned","예정 시각 칸 이름","예정 시각 (참고용 · 기록에는 저장되지 않음)"],["addTime","시간 추가 버튼","＋ 시간 추가"],["plan","예정 등록 버튼","📅 예정으로 등록"],["start","바로 시작 버튼","▶ 지금 바로 시작"],["live","진행 중 구역 이름","진행 중"],["planH","예정 구역 이름","예정"],["allH","전체 기록 구역 이름","전체 기록 (모든 입력자)"],["startPlan","예정 카드의 시작 버튼","▶ 지금 시작"],["end","종료 버튼","■ 종료"],["memoBtn","메모 저장 버튼","메모 저장"],["memoPh","메모 입력 안내","메모 (시각·입력자와 함께 기록)"],["cancelPlan","예정 취소 버튼","예정 취소"],["done","완료 표시","완료"],["pdfMenu","PDF 출력 메뉴 이름","PDF 출력"],["pdfTitle","PDF 제목","기록 확인서"],["pdfFile","PDF·백업 파일 이름 앞부분","기록"]];
@@ -249,6 +250,7 @@ const DEFLB={};LSPEC.forEach(x=>DEFLB[x[0]]=x[2]);
 let LB=Object.assign({},DEFLB);
 try{Object.assign(LB,JSON.parse(localStorage.getItem("counsel_labels_v1")||"{}"));const old=localStorage.getItem("counsel_title_v1");if(old&&!localStorage.getItem("counsel_labels_v1"))LB.title=old;}catch(e){}
 const L=k=>LB[k]||DEFLB[k];
+document.addEventListener("click",e=>{const h=e.target.closest("[data-tg]");if(!h)return;const k=h.dataset.tg;tgOpen[k]=!tgOpen[k];render();});
 function applyLabels(){document.querySelectorAll("[data-l]").forEach(el=>{el.textContent=L(el.dataset.l);});document.title=L("title");$("fab").title=L("newTop");}
 const KEY="counsel_records_v3",OLDKEY="counsel_records_v2",DEVKEY="counsel_dev_v1",CFGKEY="counsel_cfg_v1",TTLKEY="counsel_title_v1",BYKEY="counsel_by_v1";
 function load(){try{let r=JSON.parse(localStorage.getItem(KEY)||"null");if(!r){const o=JSON.parse(localStorage.getItem(OLDKEY)||"{}");r={auth:o.auth||null,events:[]};}authData=r.auth||null;events=r.events||[];return true;}catch(e){return false;}}
@@ -429,11 +431,14 @@ function matchSec(s,sec){
 }
 function render(){
   $("hLive").style.display=$("liveList").style.display=menuCfg.hide.live?"none":"";
-  $("hPlan").style.display=$("planList").style.display=menuCfg.hide.plan?"none":"";
-  $("byFilter").style.display=$("doneList").style.display=menuCfg.hide.all?"none":"";$("hAll").style.display=(menuCfg.hide.all||!adminOn())?"none":"";
   const ss=sessions();
   const live=ss.filter(s=>s.status==="live").sort((a,b)=>b.start-a.start);
     const all=ss.filter(s=>s.status==="done").sort((a,b)=>b.last-a.last);
+  const ar=o=>o?"▾ ":"▸ ";
+  $("hPlan").style.display=menuCfg.hide.plan?"none":"";$("planList").style.display=(menuCfg.hide.plan||!tgOpen.plan)?"none":"";
+  $("hPlan").textContent=ar(tgOpen.plan)+L("planH")+" ("+plans.length+")";
+  $("hAll").style.display=menuCfg.hide.all?"none":"";$("byFilter").style.display=$("doneList").style.display=(menuCfg.hide.all||!tgOpen.all)?"none":"";
+  $("hAll").textContent=ar(tgOpen.all)+(adminOn()?L("allH"):"지난 기록")+" ("+all.length+")";
   const names=Array.from(new Set(allEv().map(e=>e.by).filter(Boolean)));
   if(filterBy&&!names.includes(filterBy))filterBy="";
   $("byFilter").innerHTML=names.length?['<span class="chip '+(filterBy?"":"on")+'" data-act="filter" data-v="">전체</span>'].concat(names.map(n=>'<span class="chip '+(filterBy===n?"on":"")+'" data-act="filter" data-v="'+esc(n)+'">'+esc(n)+'</span>')).join(""):"";
@@ -468,7 +473,8 @@ function render(){
     <div class="k">시작 ${fmt(s.start)}${s.end?" · 종료 "+fmt(s.end):""}</div>${memos(s)}${adminOn()?`<div class="row" style="margin-top:8px;justify-content:flex-end"><button class="sm bad" data-act="del" data-sid="${s.sid}">삭제</button></div>`:""}</div>`;
   $("customSecs").innerHTML=menuCfg.secs.map(sec=>{
     const list=ss.filter(x=>(x.status==="done"||x.status==="live")&&matchSec(x,sec)).sort((a,b)=>b.last-a.last).filter(vis);
-    return `<h3>${esc(sec.name)} <span class="k">(${list.length})</span></h3>`+(list.map(mini).join("")||'<div class="k" style="margin:0 2px">없음</div>');
+    const o=!!tgOpen["sec:"+sec.id];
+    return `<h3 class="tg" data-tg="sec:${sec.id}">${ar(o)}${esc(sec.name)} (${list.length})</h3>`+(o?(list.map(mini).join("")||'<div class="k" style="margin:0 2px">없음</div>'):"");
   }).join("");
   lastSig=sigOf();
 }
