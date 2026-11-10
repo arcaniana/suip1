@@ -76,7 +76,7 @@ button:disabled{opacity:.5}
 
 <div id="app" class="hidden">
   <h1 id="title" data-l="title">기록 보관함</h1>
-  <div class="row sp" style="margin-bottom:10px"><div class="sub" id="conn" style="margin:0"></div><button class="sm sec" id="connBtn" data-l="linkBtn">🔗 시트 연동</button></div>
+  <div class="row sp" style="margin-bottom:10px"><div class="sub" id="conn" style="margin:0"></div><div class="row" style="flex:0 0 auto"><button class="sm sec hidden" id="viewOff">전체 보기 끄기</button><button class="sm sec" id="connBtn" data-l="linkBtn">🔗 시트 연동</button></div></div>
 
   <div id="main">
     <div class="card">
@@ -125,11 +125,21 @@ button:disabled{opacity:.5}
       <div class="k" id="installHint" style="margin-top:6px">안드로이드·PC 크롬: 주소창 오른쪽 설치 아이콘 또는 브라우저 메뉴 → "앱 설치/홈 화면에 추가"<br>아이폰(사파리): 공유 버튼 → "홈 화면에 추가"</div>
     </div>
     <div class="card">
-      <b>Google 시트 연결</b>
-      <div class="k">Apps Script 웹 앱 주소를 입력하세요. 이 기기에만 저장됩니다. 같은 주소를 쓰는 사람은 모두 같은 화면을 봅니다. 주소는 남에게 알려주지 마세요.</div>
+      <b>Google 시트로 보내기 (단방향)</b>
+      <div class="k">기록이 입력될 때마다 시트로 <b>전송만</b> 합니다. 이 앱은 시트에서 다른 사람의 기록을 읽어 오지 않으므로, 각 기기에는 그 기기에서 입력한 것만 보입니다. 연결하지 않으면 이 기기에만 저장됩니다.</div>
       <label>웹 앱 주소 (…/exec)</label><input id="cfgUrl" placeholder="https://script.google.com/macros/s/…/exec">
-      <div class="row" style="margin-top:10px"><button id="cfgSave">저장·연결 테스트</button><button class="sec" id="cfgSync">지금 동기화</button></div>
+      <div class="row" style="margin-top:10px"><button id="cfgSave">저장·연결 테스트</button><button class="sec" id="cfgSync">지금 보내기</button><button class="sec" id="cfgOff">연결 끊기</button></div>
       <div id="cfgMsg" class="msg"></div>
+      <div class="k" style="margin-top:10px">다른 분들이 설정 없이 쓰게 하려면 아래 <b>공유 링크</b>를 보내 주세요. 링크를 한 번 여는 것만으로 시트 전송이 설정됩니다.</div>
+      <div class="row" style="margin-top:6px"><button class="sm sec" id="linkMake">공유 링크 만들기</button><button class="sm sec" id="linkCopy">복사</button></div>
+      <textarea id="linkOut" readonly style="margin-top:6px;min-height:54px"></textarea>
+    </div>
+    <div class="card">
+      <b>전체 보기 (비밀번호)</b>
+      <div class="k">시트에 모인 모든 입력자의 기록을 불러와 이 화면에서 한꺼번에 봅니다. Apps Script에 정해 둔 <b>전체 보기 비밀번호</b>가 필요하며, 이 기기에는 저장되지 않습니다(앱을 닫으면 해제).</div>
+      <input id="viewPw" type="password" placeholder="전체 보기 비밀번호" style="margin-top:8px">
+      <div class="row" style="margin-top:8px"><button id="viewBtn">불러오기</button><button class="sec" id="viewOff2">해제</button></div>
+      <div id="viewMsg" class="msg"></div>
     </div>
     <div class="card">
       <b>PDF 출력</b>
@@ -175,7 +185,7 @@ const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",
 const hex=b=>Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join("");
 const sha=async s=>hex(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)));
 
-let events=[],authData=null,busy=false,filterBy="",editing=null,pendingRender=false,lastSig="";
+let events=[],remoteEv=[],viewKey=null,DEV="",authData=null,busy=false,filterBy="",editing=null,pendingRender=false,lastSig="";
 const drafts={};
 const LSPEC=[["title","화면 제목","기록 보관함"],["by","입력자 칸 이름","입력자 (내 이름)"],["newTop","새 항목 버튼","＋ 새 기록 / 시간 추가"],["newTitle","새 항목 창 제목","새 기록"],["who","대상 칸 이름","대상 (이니셜·번호 등)"],["topic","제목 칸 이름","제목"],["planned","예정 시각 칸 이름","예정 시각 (여러 시간은 앞에서부터 순서대로 추가)"],["addTime","시간 추가 버튼","＋ 시간 추가"],["plan","예정 등록 버튼","📅 예정으로 등록"],["start","바로 시작 버튼","▶ 지금 바로 시작"],["linkBtn","시트 연동 버튼","🔗 시트 연동"],["live","진행 중 구역 이름","진행 중"],["planH","예정 구역 이름","예정"],["allH","전체 기록 구역 이름","전체 기록 (모든 입력자)"],["startPlan","예정 카드의 시작 버튼","▶ 지금 시작"],["end","종료 버튼","■ 종료"],["memoBtn","메모 저장 버튼","메모 저장"],["memoPh","메모 입력 안내","메모 (시각·입력자와 함께 기록)"],["cancelPlan","예정 취소 버튼","예정 취소"],["done","완료 표시","완료"],["pdfTitle","PDF 제목","기록 확인서"],["pdfFile","PDF·백업 파일 이름 앞부분","기록"]];
 const DEFLB={};LSPEC.forEach(x=>DEFLB[x[0]]=x[2]);
@@ -183,8 +193,8 @@ let LB=Object.assign({},DEFLB);
 try{Object.assign(LB,JSON.parse(localStorage.getItem("counsel_labels_v1")||"{}"));const old=localStorage.getItem("counsel_title_v1");if(old&&!localStorage.getItem("counsel_labels_v1"))LB.title=old;}catch(e){}
 const L=k=>LB[k]||DEFLB[k];
 function applyLabels(){document.querySelectorAll("[data-l]").forEach(el=>{el.textContent=L(el.dataset.l);});document.title=L("title");$("fab").title=L("newTop");}
-const KEY="counsel_records_v2",CFGKEY="counsel_cfg_v1",TTLKEY="counsel_title_v1",BYKEY="counsel_by_v1";
-function load(){try{const r=JSON.parse(localStorage.getItem(KEY)||"{}");authData=r.auth||null;events=r.events||[];return true;}catch(e){return false;}}
+const KEY="counsel_records_v3",OLDKEY="counsel_records_v2",DEVKEY="counsel_dev_v1",CFGKEY="counsel_cfg_v1",TTLKEY="counsel_title_v1",BYKEY="counsel_by_v1";
+function load(){try{let r=JSON.parse(localStorage.getItem(KEY)||"null");if(!r){const o=JSON.parse(localStorage.getItem(OLDKEY)||"{}");r={auth:o.auth||null,events:[]};}authData=r.auth||null;events=r.events||[];return true;}catch(e){return false;}}
 function save(){localStorage.setItem(KEY,JSON.stringify({auth:authData,events}));}
 function getCfg(){try{const c=JSON.parse(localStorage.getItem(CFGKEY)||"null");return c&&c.url?c:null;}catch(e){return null;}}
 async function remote(action,payload){
@@ -193,17 +203,41 @@ async function remote(action,payload){
   const j=await r.json();if(!j.ok){const e=new Error(j.error||"서버 오류");e.code=j.code;throw e;}return j;
 }
 function setConn(h){$("conn").innerHTML=h;}
-function connDefault(){setConn(getCfg()?'<span class="ok">● Google 시트 연결됨 — 다른 입력자의 기록도 함께 표시됩니다</span>':'<span class="warn">● 시트 미연결 — 이 기기에만 저장됩니다 (관리 메뉴에서 연결)</span>');}
-const sigOf=()=>events.length+":"+(events.length?events[events.length-1].hash:"");
-async function sync(quiet){
-  if(!getCfg())return;
-  try{
-    const j=await remote("list");const sig0=sigOf();
-    events=j.events.sort((a,b)=>a.seq-b.seq);save();
-    if(sigOf()!==sig0||!quiet)softRender();
-    setConn('<span class="ok">● Google 시트와 동기화됨 ('+fmtS(Date.now())+')</span>');
-  }catch(e){setConn('<span class="err">● 시트 연결 실패: '+esc(e.message)+'</span>');}
+const tkey=e=>e.srv||e.at;
+function allEv(){
+  const m=new Map();
+  events.concat(remoteEv).forEach(e=>{const k=e.dev+":"+e.seq,o=m.get(k);if(!o||(!o.srv&&e.srv))m.set(k,e);});
+  return Array.from(m.values()).sort((a,b)=>tkey(a)-tkey(b)||String(a.dev).localeCompare(String(b.dev))||a.seq-b.seq);
 }
+const pendingN=()=>getCfg()?events.filter(e=>!e.srv).length:0;
+let lastErr="";
+function connDefault(){
+  const c=getCfg(),p=pendingN();
+  let h=c?'<span class="ok">● 시트로 전송 중 (보내기만 함)</span>'+(p?' <span class="warn">· 전송 대기 '+p+'건</span>':''):'<span class="warn">● 이 기기에만 저장됩니다 (시트 미연결)</span>';
+  if(lastErr)h+=' <span class="err">· '+esc(lastErr)+'</span>';
+  if(viewKey)h+=' <span class="ok">· 전체 보기 중 ('+remoteEv.length+'건)</span>';
+  setConn(h);$("viewOff").classList.toggle("hidden",!viewKey);
+}
+async function flush(){
+  if(!getCfg())return;
+  const todo=events.filter(e=>!e.srv).sort((a,b)=>a.seq-b.seq);
+  for(const e of todo){
+    try{const j=await remote("append",{event:e});e.srv=j.srv;save();lastErr="";}
+    catch(err){lastErr="전송 실패: "+err.message;break;}
+  }
+}
+async function loadAll(){
+  if(!viewKey)return;
+  const j=await remote("list",{key:viewKey});remoteEv=j.events;
+}
+async function sync(quiet){
+  const sig0=allEv().length;
+  try{await flush();}catch(e){}
+  if(viewKey){try{await loadAll();}catch(e){lastErr="불러오기 실패: "+e.message;}}
+  connDefault();
+  if(allEv().length!==sig0||!quiet)softRender();
+}
+const sigOf=()=>allEv().length+":"+pendingN();
 
 /* ---------- boot / gate ---------- */
 function boot(){
@@ -215,6 +249,8 @@ function boot(){
     $("pw").classList.add("hidden");$("pwBtn").classList.add("hidden");return;
   }
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
+  try{const u=new URLSearchParams(location.search).get("u");if(u&&/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){localStorage.setItem(CFGKEY,JSON.stringify({url:u}));history.replaceState(null,"",location.pathname);}}catch(e){}
+  DEV=localStorage.getItem(DEVKEY)||(()=>{const v=hex(crypto.getRandomValues(new Uint8Array(6)));localStorage.setItem(DEVKEY,v);return v;})();
   applyLabels();
   $("by").value=localStorage.getItem(BYKEY)||"";
   $("app").classList.remove("hidden");render();connDefault();sync();
@@ -243,51 +279,53 @@ $("pwBtn").onclick=async()=>{
 $("pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("pwBtn").click();});
 
 /* ---------- hash chain ---------- */
-const FIELDS=["seq","type","sid","at","by","who","topic","planned","text","prev"];
+const FIELDS=["seq","type","sid","at","by","dev","who","topic","planned","text","prev"];
 const canon=e=>JSON.stringify(FIELDS.map(k=>e[k]===undefined?"":e[k]));
 function getBy(){const b=$("by").value.trim();if(!b){alert("입력자 이름을 먼저 적어 주세요.");$("by").focus();return null;}localStorage.setItem(BYKEY,b);return b;}
 async function append(p){
   if(busy)return false;busy=true;
   try{
-    for(let attempt=0;attempt<3;attempt++){
-      const last=events[events.length-1];
-      const e=Object.assign({seq:last?last.seq+1:1,at:Date.now(),by:"",who:"",topic:"",planned:"",text:"",prev:last?last.hash:"GENESIS"},p);
-      e.hash=await sha(canon(e));
-      if(getCfg()){
-        try{const j=await remote("append",{event:e});e.srv=j.srv;}
-        catch(err){if(err.code==="SEQ"&&attempt<2){await sync(true);continue;}throw err;}
-      }
-      events=events.concat([e]);save();softRender();return true;
-    }
-  }catch(err){alert("저장 실패: "+(err.message||err));if(getCfg())sync(true);return false;}
+    const mine=events.filter(x=>x.dev===DEV).sort((a,b)=>a.seq-b.seq),last=mine[mine.length-1];
+    const e=Object.assign({seq:last?last.seq+1:1,at:Date.now(),by:"",dev:DEV,who:"",topic:"",planned:"",text:"",prev:last?last.hash:"GENESIS"},p);
+    e.hash=await sha(canon(e));
+    events=events.concat([e]);save();softRender();
+    flush().then(()=>{connDefault();softRender();});
+    connDefault();return true;
+  }catch(err){alert("저장 실패: "+(err.message||err));return false;}
   finally{busy=false;}
 }
 async function verify(){
-  const list=events.slice().sort((a,b)=>a.seq-b.seq);let prev="GENESIS",bad=[];
-  for(let i=0;i<list.length;i++){
-    const e=list[i];
-    if(e.seq!==i+1)bad.push("#"+(i+1)+" 번호 불연속");
-    if(e.prev!==prev)bad.push("#"+e.seq+" 연결 불일치");
-    if(await sha(canon(e))!==e.hash)bad.push("#"+e.seq+" 내용 변조 의심");
-    prev=e.hash;
+  const list=allEv(),g={},bad=[],heads=[];
+  list.forEach(e=>{(g[e.dev||"?"]=g[e.dev||"?"]||[]).push(e);});
+  for(const dev of Object.keys(g).sort()){
+    const arr=g[dev].sort((a,b)=>a.seq-b.seq);let prev="GENESIS";
+    for(let i=0;i<arr.length;i++){
+      const e=arr[i],tag="#"+e.seq+"("+dev.slice(0,4)+")";
+      if(e.seq!==i+1)bad.push(tag+" 번호 불연속");
+      if(e.prev!==prev)bad.push(tag+" 연결 불일치");
+      if(await sha(canon(e))!==e.hash)bad.push(tag+" 내용 변조 의심");
+      prev=e.hash;
+    }
+    heads.push(dev+":"+prev);
   }
-  return{n:list.length,bad,head:prev};
+  return{n:list.length,bad,head:heads.length?await sha(heads.join("|")):"GENESIS"};
 }
 
 /* ---------- sessions ---------- */
 function sessions(){
   const m=new Map();
-  events.forEach(e=>{
-    let s=m.get(e.sid);if(!s){s={sid:e.sid,memos:[],hashes:[],by:new Set(),status:"x"};m.set(e.sid,s);}
-    s.hashes.push(e.seq+":"+e.hash.slice(0,10));s.last=e.at;
+  allEv().forEach(e=>{
+    let s=m.get(e.sid);if(!s){s={sid:e.sid,memos:[],hashes:[],by:new Set(),status:"x",last:0};m.set(e.sid,s);}
+    s.hashes.push(String(e.dev).slice(0,4)+"-"+e.seq+":"+e.hash.slice(0,10));s.last=Math.max(s.last,tkey(e));
     if(e.by)s.by.add(e.by);
-    if(e.type==="plan"){s.planAt=e.at;s.planBy=e.by;s.who=e.who;s.topic=e.topic;s.planned=e.planned;s.status="plan";}
-    else if(e.type==="start"){s.start=e.at;s.startSrv=e.srv;s.startBy=e.by;if(e.who)s.who=e.who;if(e.topic)s.topic=e.topic;if(e.planned)s.planned=e.planned;s.status="live";}
-    else if(e.type==="end"){s.end=e.at;s.endSrv=e.srv;s.endBy=e.by;s.status="done";}
-    else if(e.type==="cancel"){s.status="cancel";s.cancelBy=e.by;}
+    if(e.type==="plan"){s.planAt=e.at;s.planBy=e.by;s.who=e.who;s.topic=e.topic;s.planned=e.planned;s.isPlan=true;}
+    else if(e.type==="start"){s.start=e.at;s.startSrv=e.srv;s.startBy=e.by;if(e.who)s.who=e.who;if(e.topic)s.topic=e.topic;if(e.planned)s.planned=e.planned;}
+    else if(e.type==="end"){s.end=e.at;s.endSrv=e.srv;s.endBy=e.by;}
+    else if(e.type==="cancel"){s.cancel=true;s.cancelBy=e.by;}
     else if(e.type==="memo"){s.memos.push({at:e.at,text:e.text,by:e.by});}
     else if(e.type==="retitle"){s.topic=e.text;s.retitled=true;}
   });
+  m.forEach(s=>{s.status=s.end&&s.start?"done":s.start?"live":s.cancel?"cancel":s.isPlan?"plan":"x";s.memos.sort((a,b)=>a.at-b.at);});
   return Array.from(m.values()).filter(s=>s.status!=="x");
 }
 const plannedMs=p=>p?new Date(p+":00+09:00").getTime():0;
@@ -303,7 +341,7 @@ function render(){
   const live=ss.filter(s=>s.status==="live").sort((a,b)=>b.start-a.start);
   const plan=ss.filter(s=>s.status==="plan").sort((a,b)=>plannedMs(a.planned)-plannedMs(b.planned)||a.planAt-b.planAt);
   const all=ss.filter(s=>s.status==="done"||s.status==="cancel").sort((a,b)=>b.last-a.last);
-  const names=Array.from(new Set(events.map(e=>e.by).filter(Boolean)));
+  const names=Array.from(new Set(allEv().map(e=>e.by).filter(Boolean)));
   if(filterBy&&!names.includes(filterBy))filterBy="";
   $("byFilter").innerHTML=names.length?['<span class="chip '+(filterBy?"":"on")+'" data-act="filter" data-v="">전체</span>'].concat(names.map(n=>'<span class="chip '+(filterBy===n?"on":"")+'" data-act="filter" data-v="'+esc(n)+'">'+esc(n)+'</span>')).join(""):"";
   const vis=s=>!filterBy||s.by.has(filterBy);
@@ -409,21 +447,25 @@ $("lbReset").onclick=()=>{localStorage.removeItem("counsel_labels_v1");localStor
 $("cfgSave").onclick=async()=>{
   const url=$("cfgUrl").value.trim(),m=$("cfgMsg");
   if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){m.innerHTML='<span class="err">주소(…/exec)를 확인하세요.</span>';return;}
-  const old=localStorage.getItem(CFGKEY);
-  localStorage.setItem(CFGKEY,JSON.stringify({url}));m.textContent="연결 중…";
+  const old=localStorage.getItem(CFGKEY);localStorage.setItem(CFGKEY,JSON.stringify({url}));m.textContent="연결 중…";
   try{
-    const j=await remote("list");
-    if(events.length&&!j.events.length){
-      for(const e of events.slice().sort((a,b)=>a.seq-b.seq)){const r=await remote("append",{event:e});e.srv=r.srv;}
-      save();m.innerHTML='<span class="ok">연결됨. 이 기기의 기록 '+events.length+'건을 시트로 올렸습니다.</span>';
-    }else{
-      m.innerHTML='<span class="ok">연결됨. 시트의 기록 '+j.events.length+'건을 불러왔습니다.</span>';
-      events=j.events.sort((a,b)=>a.seq-b.seq);save();
-    }
-    render();connDefault();
-  }catch(e){if(old)localStorage.setItem(CFGKEY,old);else localStorage.removeItem(CFGKEY);m.innerHTML='<span class="err">연결 실패: '+esc(e.message)+'</span>';connDefault();}
+    await remote("ping");lastErr="";const p=events.filter(e=>!e.srv).length;await flush();
+    m.innerHTML='<span class="ok">연결됨.'+(p?' 전송 대기 '+p+'건을 보냈습니다.':'')+(lastErr?' (일부 실패: '+esc(lastErr)+')':'')+'</span>';
+  }catch(e){if(old)localStorage.setItem(CFGKEY,old);else localStorage.removeItem(CFGKEY);m.innerHTML='<span class="err">연결 실패: '+esc(e.message)+'</span>';}
+  connDefault();render();
 };
-$("cfgSync").onclick=async()=>{await sync();$("cfgMsg").innerHTML=getCfg()?'<span class="ok">동기화했습니다.</span>':'<span class="err">먼저 연결하세요.</span>';};
+$("cfgSync").onclick=async()=>{if(!getCfg()){$("cfgMsg").innerHTML='<span class="err">먼저 연결하세요.</span>';return;}await sync();$("cfgMsg").innerHTML=lastErr?'<span class="err">'+esc(lastErr)+'</span>':'<span class="ok">보냈습니다.</span>';};
+$("linkMake").onclick=()=>{const c=getCfg();$("linkOut").value=c?location.origin+location.pathname+"?u="+encodeURIComponent(c.url):"먼저 시트에 연결하세요.";};
+$("linkCopy").onclick=async()=>{try{await navigator.clipboard.writeText($("linkOut").value);$("cfgMsg").innerHTML='<span class="ok">복사했습니다.</span>';}catch(e){$("cfgMsg").innerHTML='<span class="warn">직접 복사하세요.</span>';}};
+$("cfgOff").onclick=()=>{localStorage.removeItem(CFGKEY);viewKey=null;remoteEv=[];lastErr="";connDefault();render();$("cfgMsg").innerHTML='<span class="ok">연결을 끊었습니다. 이후 기록은 이 기기에만 저장됩니다.</span>';};
+$("viewBtn").onclick=async()=>{
+  const k=$("viewPw").value;const m=$("viewMsg");if(!getCfg()){m.innerHTML='<span class="err">먼저 시트에 연결하세요.</span>';return;}if(!k){return;}
+  m.textContent="불러오는 중…";
+  try{viewKey=k;await loadAll();$("viewPw").value="";lastErr="";connDefault();render();m.innerHTML='<span class="ok">'+remoteEv.length+'건을 불러왔습니다. 관리 닫기를 누르면 전체가 보입니다.</span>';}
+  catch(e){viewKey=null;remoteEv=[];connDefault();m.innerHTML='<span class="err">실패: '+esc(e.message)+'</span>';}
+};
+function viewOff(){viewKey=null;remoteEv=[];connDefault();render();$("viewMsg").innerHTML='<span class="ok">전체 보기를 해제했습니다.</span>';}
+$("viewOff").onclick=viewOff;$("viewOff2").onclick=viewOff;
 $("verifyBtn").onclick=async()=>{const v=await verify();$("verifyMsg").innerHTML=v.bad.length?'<span class="err">이상 발견: '+v.bad.map(esc).join(", ")+'</span>':'<span class="ok">정상 — 기록 '+v.n+'건 모두 연결·내용 일치</span>';};
 $("anchorBtn").onclick=async()=>{try{await navigator.clipboard.writeText($("anchor").value);$("anchorMsg").innerHTML='<span class="ok">복사했습니다.</span>';}catch(e){$("anchorMsg").innerHTML='<span class="warn">자동 복사가 막혀 있습니다. 위 글을 직접 복사하세요.</span>';}};
 $("backupBtn").onclick=()=>{download(L("pdfFile")+"_백업_"+new Date().toLocaleDateString("sv-SE",{timeZone:TZ})+".json",new Blob([JSON.stringify(events)],{type:"application/json"}));$("anchorMsg").innerHTML='<span class="ok">백업 파일을 저장했습니다.</span>';};
