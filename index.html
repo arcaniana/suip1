@@ -44,7 +44,9 @@ button:disabled{opacity:.5}
 .msg{font-size:13px;margin-top:8px}
 .ok{color:var(--ok)}.err{color:var(--bad)}.warn{color:var(--warn)}
 .lock{max-width:340px;margin:18vh auto 0}
+input,select,textarea{font-size:16px}
 .hidden{display:none!important}
+#toast{display:none;position:fixed;left:50%;bottom:26px;transform:translateX(-50%);max-width:88vw;background:#1d2330;color:#fff;padding:11px 16px;border-radius:10px;font-size:14px;z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,.3);white-space:pre-line;text-align:center}
 .ttl{font-weight:700;font-size:16px}
 .memo{font-size:13px;margin-top:2px}
 .fl{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 8px}
@@ -58,12 +60,18 @@ button:disabled{opacity:.5}
 .page table{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:18px}
 .page td,.page th{border:1px solid #bbb;padding:8px 10px;text-align:left;vertical-align:top}
 .page th{background:#f0f2f6;width:28%;font-weight:500}
-.slot{border-left:3px solid var(--line);padding-left:8px;margin-bottom:10px}
-.rowl{display:flex;gap:6px;align-items:flex-start;margin-bottom:6px}.rowl>b{flex:0 0 32px;font-size:13px;color:var(--mute);font-weight:500;padding-top:11px}
-.plw{flex:1 1 0;min-width:0}.plr{display:flex;gap:6px}.plr input{flex:1 1 0;min-width:0;padding:9px 3px;font-size:13px}.tbtn{flex:0 0 auto;padding:9px 7px;font-size:14px;white-space:nowrap}
-.dur{flex:0 0 72px;width:72px;padding:9px 2px;font-size:13px}
-.pan{background:#f3f5fa;border-radius:8px;padding:6px 8px;margin-top:6px}.pan .k{margin:0 0 4px}
-.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{flex:0 0 auto;min-width:48px;padding:8px 6px;background:#fff;color:var(--ink);border:1px solid var(--line)}.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+#plannedList{counter-reset:sl}.slot{background:#f6f8fc;border:1px solid #cfd8ea;border-left:4px solid var(--accent);border-radius:10px;padding:8px 10px 10px;margin-bottom:10px}.slot::before{counter-increment:sl;content:"예정 " counter(sl);flex:1 1 100%;font-size:12px;font-weight:600;color:var(--accent)}
+.slot{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:flex-start;position:relative}
+.grp{display:flex;gap:6px;align-items:center;flex:0 0 226px;width:226px;min-width:0}
+.grp>b{flex:0 0 auto;font-size:13px;color:var(--mute);font-weight:500}
+.grp.gd{flex:0 0 auto;width:auto}.grp.gd>b{font-size:16px}.grp.gd select{width:84px;height:40px;padding:0 2px;background:#e9ecf3;border-color:#e9ecf3}
+.plw{flex:1 1 0;min-width:0}.plr{display:flex;gap:4px;align-items:center}
+.dw{position:relative;flex:1 1 0;min-width:0}.dbtn{width:100%;height:40px;padding:0 2px;font-size:14px;white-space:nowrap;overflow:hidden}
+.dw input{font-size:16px;position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;padding:0;border:0}
+.tbtn{flex:0 0 76px;width:76px;height:40px;padding:0 2px;font-size:14px;white-space:nowrap}
+@media(max-width:560px){.slot>.grp:not(.gd){flex:1 1 44%;width:auto}.slot{padding:8px 6px 10px;gap:8px 6px}.slot>.grp{gap:3px}.grp>b{font-size:12px}.tbtn{flex-basis:62px;width:62px;font-size:12px}.dbtn{font-size:12px}.plr{gap:3px}.slot>.grp:nth-child(3){order:2}.slot>.grp.gd{order:3;flex:1 1 100%}.slot>.hint{order:4}}
+.pan{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:30;background:#f3f5fa;border:1px solid var(--line);box-shadow:0 6px 18px rgba(0,0,0,.18);border-radius:10px;padding:8px 10px}.pan.rt{left:auto;right:0}.pan .k{margin:0 0 4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chip:disabled{opacity:.35;cursor:not-allowed}.chip{flex:0 0 auto;min-width:48px;padding:8px 6px;background:#fff;color:var(--ink);border:1px solid var(--line)}.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .page .m{font-size:13px;margin:0 0 6px}
 .page.lst table{font-size:12px;margin-bottom:0}
 .page.lst th{width:auto;text-align:center;font-size:12px;padding:6px 6px}
@@ -97,7 +105,6 @@ button:disabled{opacity:.5}
     </div>
 
     <button id="newTop" style="width:100%;margin-bottom:10px;padding:12px" data-l="newTop">＋ 새 기록 / 시간 추가</button>
-    <button class="sec" id="pdfMenu" data-l="pdfMenu" style="width:100%;margin-bottom:10px;padding:10px">PDF 출력</button>
     <div class="card hidden" id="newCard">
       <div class="row sp"><b data-l="newTitle">새 기록</b><button class="sm sec" id="newClose">닫기</button></div>
       <div class="row g">
@@ -121,6 +128,7 @@ button:disabled{opacity:.5}
     <div class="fl" id="byFilter"></div>
     <div id="doneList"></div>
     <div id="customSecs"></div>
+    <button class="sec" id="pdfMenu" data-l="pdfMenu" style="width:100%;margin:18px 0 10px;padding:10px">PDF 출력</button>
   </div>
 
   <div id="admin" class="hidden">
@@ -215,6 +223,8 @@ const $=id=>document.getElementById(id);
 const TZ="Asia/Seoul";
 const fmt=ms=>ms?new Date(ms).toLocaleString("ko-KR",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}):"";
 const fmtS=ms=>ms?new Date(ms).toLocaleTimeString("ko-KR",{timeZone:TZ,hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"}):"";
+const fmtHM=ms=>ms?new Date(ms).toLocaleTimeString("ko-KR",{timeZone:TZ,hour12:false,hour:"2-digit",minute:"2-digit"}):"";
+const fmtMin=ms=>ms?new Date(ms).toLocaleString("sv-SE",{timeZone:TZ,hour12:false,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
 const fmtP=p=>p?p.replace("T"," "):"";
 const dur=ms=>{ms=Math.max(0,Math.floor(ms/1000));return String(Math.floor(ms/3600)).padStart(2,"0")+":"+String(Math.floor(ms%3600/60)).padStart(2,"0")+":"+String(ms%60).padStart(2,"0");};
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -345,7 +355,9 @@ $("pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("pwBtn").click();});
 /* ---------- hash chain ---------- */
 const FIELDS=["seq","type","sid","at","by","dev","who","topic","planned","text","prev"];
 const canon=e=>JSON.stringify(FIELDS.map(k=>e[k]===undefined?"":e[k]));
-function getBy(){const b=$("by").value.trim();if(!b){alert("입력자 이름을 먼저 적어 주세요.");$("by").focus();return null;}localStorage.setItem(BYKEY,b);return b;}
+let toastT=null;
+function notify(m){let t=$("toast");if(!t){t=document.createElement("div");t.id="toast";document.body.appendChild(t);}t.textContent=m;t.style.display="block";clearTimeout(toastT);toastT=setTimeout(()=>{t.style.display="none";},4500);}
+function getBy(){const b=$("by").value.trim();if(!b){notify("입력자 이름을 먼저 적어 주세요.");$("by").focus();return null;}localStorage.setItem(BYKEY,b);return b;}
 async function append(p){
   if(busy)return false;busy=true;
   try{
@@ -355,7 +367,7 @@ async function append(p){
     events=events.concat([e]);save();softRender();
     flush().then(()=>{connDefault();softRender();});
     connDefault();return true;
-  }catch(err){alert("저장 실패: "+(err.message||err));return false;}
+  }catch(err){notify("저장 실패: "+(err.message||err));return false;}
   finally{busy=false;}
 }
 async function verify(){
@@ -417,7 +429,7 @@ function matchSec(s,sec){
 function render(){
   $("hLive").style.display=$("liveList").style.display=menuCfg.hide.live?"none":"";
   $("hPlan").style.display=$("planList").style.display=menuCfg.hide.plan?"none":"";
-  $("hAll").style.display=$("byFilter").style.display=$("doneList").style.display=menuCfg.hide.all?"none":"";
+  $("byFilter").style.display=$("doneList").style.display=menuCfg.hide.all?"none":"";$("hAll").style.display=(menuCfg.hide.all||!adminOn())?"none":"";
   const ss=sessions();
   const live=ss.filter(s=>s.status==="live").sort((a,b)=>b.start-a.start);
     const all=ss.filter(s=>s.status==="done").sort((a,b)=>b.last-a.last);
@@ -433,7 +445,7 @@ function render(){
     <div class="row sp"><span class="pill live">${esc(L("live"))}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(s.who)}${extraTxt(s.extra)?" · "+esc(extraTxt(s.extra)):""}</div>
-    <div class="k">시작 ${fmt(s.start)}${s.startSrv?" (서버 "+fmtS(s.startSrv)+")":""} ${esc(diffTxt(s))}</div>
+    <div class="k">시작 ${fmt(s.start)}${s.startSrv?" (서버 "+fmtHM(s.startSrv)+")":""} ${esc(diffTxt(s))}</div>
     <div class="timer" data-t="${s.start}">${dur(Date.now()-s.start)}</div>
     ${memos(s)}
     <textarea data-draft="m:${s.sid}" placeholder="${esc(L("memoPh"))}" style="margin-top:8px">${esc(drafts["m:"+s.sid]||"")}</textarea>
@@ -447,7 +459,7 @@ function render(){
     <div class="row sp"><span class="pill ${s.status==="done"?"done":""}">${L("done")+" "+dur(s.end-s.start)}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(s.who)}${extraTxt(s.extra)?" · "+esc(extraTxt(s.extra)):""}</div>
-    <div class="k">${s.start?"시작 "+fmt(s.start)+(s.startSrv?" (서버 "+fmtS(s.startSrv)+")":"")+" · 종료 "+fmt(s.end)+(s.endSrv?" (서버 "+fmtS(s.endSrv)+")":""):""}</div>
+    <div class="k">${s.start?"시작 "+fmt(s.start)+(s.startSrv?" (서버 "+fmtHM(s.startSrv)+")":"")+" · 종료 "+fmt(s.end)+(s.endSrv?" (서버 "+fmtHM(s.endSrv)+")":""):""}</div>
     ${memos(s)}${adminOn()?`<div class="row" style="margin-top:8px;justify-content:flex-end"><button class="sm bad" data-act="del" data-sid="${s.sid}">삭제</button></div>`:""}</div>`).join("")||'<div class="k" style="margin:0 2px">아직 기록이 없습니다.</div>';
   const mini=s=>`<div class="card"><div class="row sp"><span class="pill ${s.status==="live"?"live":"done"}">${s.status==="live"?esc(L("live")):esc(L("done"))+" "+dur(s.end-s.start)}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
     <div style="margin-top:4px"><span class="ttl">${esc(s.topic||"(제목 없음)")}</span></div>
@@ -471,47 +483,70 @@ document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset
 
 /* ---------- actions ---------- */
 const newSid=()=>"s"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
-function mkPl(){
+function mkPl(nm){
   const w=document.createElement("div");w.className="pl plw";
-  w.innerHTML='<div class="plr"><input type="date" data-p="d"><button type="button" class="sec tbtn" data-p="t">시간</button></div><div class="pan hidden"></div>';
+  w.innerHTML='<div class="plr"><div class="dw"><button type="button" class="sec dbtn" tabindex="-1"></button><input type="date" data-p="d"></div><button type="button" class="sec tbtn" data-p="t">시각</button></div><div class="pan hidden"></div>';
   const q=k=>w.querySelector('[data-p="'+k+'"]'),pan=w.querySelector(".pan");
   const st={a:"",h:"",m:""};let mn="",step="";
-  const lab=()=>{q("t").textContent=(st.a&&st.h&&st.m!=="")?(st.a==="AM"?"오전 ":"오후 ")+st.h+":"+st.m:"시간";};
-  const chips=(arr,cur)=>arr.map(x=>`<button type="button" class="chip${String(x[0])===cur?" on":""}" data-v="${x[0]}">${x[1]}</button>`).join("");
+  const dl=()=>{const v=q("d").value,b=w.querySelector(".dbtn");if(!v){b.textContent=nm||"날짜";return;}const[y,mo,da]=v.split("-").map(Number);b.textContent=(y!==new Date().getFullYear()?String(y).slice(2)+".":"")+mo+"/"+da+"("+"일월화수목금토"[new Date(y,mo-1,da).getDay()]+")";};
+  dl();
+  const lab=()=>{q("t").textContent=(st.a&&st.h&&st.m!=="")?(st.a==="AM"?"오전 ":"오후 ")+st.h+":"+st.m:"시각";};
+  const lim=()=>{if(!mn||q("d").value!==mn.slice(0,10))return null;return Number(mn.slice(11,13))*60+Number(mn.slice(14,16));};
+  const okT=t=>{const l=lim();return l===null||(w.strict?t>l:t>=l);};
+  const H24=()=>(Number(st.h)%12)+(st.a==="PM"?12:0);
+  const chips=(arr,cur,ok)=>arr.map(x=>`<button type="button" class="chip${String(x[0])===cur?" on":""}" data-v="${x[0]}"${ok&&!ok(x[0])?" disabled":""}>${x[1]}</button>`).join("");
   function show(n){
     step=n;pan.classList.remove("hidden");
-    if(n==="a")pan.innerHTML='<div class="k">오전 / 오후</div><div class="chips">'+chips([["AM","오전"],["PM","오후"]],st.a)+'</div>';
-    else if(n==="h")pan.innerHTML='<div class="k">시</div><div class="chips">'+chips([...Array(12)].map((_,i)=>[String(i+1),(i+1)+"시"]),st.h)+'</div>';
-    else pan.innerHTML='<div class="k">분 (10분 단위)</div><div class="chips">'+chips(["00","10","20","30","40","50"].map(x=>[x,x+"분"]),st.m)+'</div>';
+    pan.classList.toggle("rt",w.getBoundingClientRect().left+310>window.innerWidth);
+    if(n==="a")pan.innerHTML='<div class="k">오전 / 오후</div><div class="chips">'+chips([["AM","오전"],["PM","오후"]],st.a,v=>okT(v==="AM"?11*60+55:23*60+55))+'</div>';
+    else if(n==="h")pan.innerHTML='<div class="k">시</div><div class="chips">'+chips([...Array(12)].map((_,i)=>[String(i+1),(i+1)+"시"]),st.h,v=>okT(((Number(v)%12)+(st.a==="PM"?12:0))*60+55))+'</div>';
+    else pan.innerHTML='<div class="k">분 (5분 단위)</div><div class="chips">'+chips([...Array(12)].map((_,i)=>String(i*5).padStart(2,"0")).map(x=>[x,x+"분"]),st.m,v=>okT(H24()*60+Number(v)))+'</div>';
   }
   const hide=()=>{pan.classList.add("hidden");step="";};
   pan.addEventListener("click",e=>{const c=e.target.closest("[data-v]");if(!c)return;const v=c.dataset.v;
     if(step==="a"){st.a=v;show("h");}else if(step==="h"){st.h=v;show("m");}else{st.m=v;hide();lab();w.dispatchEvent(new Event("change",{bubbles:true}));}});
-  q("d").addEventListener("change",()=>{if(q("d").value)show("a");});
+  q("d").addEventListener("change",()=>{dl();hide();try{q("d").blur();}catch(e){}});
   q("d").addEventListener("click",()=>{try{if(!q("d").disabled&&q("d").showPicker)q("d").showPicker();}catch(e){}});
   q("t").addEventListener("click",()=>{if(w.onOpen)w.onOpen();if(step)hide();else show("a");});
   Object.defineProperty(w,"value",{get(){const d=q("d").value;if(!d||!st.a||!st.h||st.m==="")return"";let H=Number(st.h)%12;if(st.a==="PM")H+=12;return d+"T"+String(H).padStart(2,"0")+":"+st.m;},
-    set(v){hide();if(!v){q("d").value="";st.a=st.h=st.m="";lab();return;}const[d,t]=v.split("T"),H=Number(t.slice(0,2));q("d").value=d;st.a=H>=12?"PM":"AM";st.h=String(H%12||12);st.m=t.slice(3,5);lab();}});
-  Object.defineProperty(w,"disabled",{get(){return q("d").disabled;},set(v){q("d").disabled=!!v;q("t").disabled=!!v;if(v)hide();}});
+    set(v){hide();if(!v){q("d").value="";st.a=st.h=st.m="";lab();dl();return;}const[d,t]=v.split("T"),H=Number(t.slice(0,2));q("d").value=d;st.a=H>=12?"PM":"AM";st.h=String(H%12||12);st.m=t.slice(3,5);lab();dl();}});
+  Object.defineProperty(w,"disabled",{get(){return q("d").disabled;},set(v){q("d").disabled=!!v;q("t").disabled=!!v;w.querySelector(".dbtn").disabled=!!v;if(v)hide();}});
   Object.defineProperty(w,"min",{get(){return mn;},set(v){mn=v||"";q("d").min=mn?mn.slice(0,10):"";}});
   w.clearTime=()=>{st.a=st.h=st.m="";lab();hide();};
-  w.setDateOnly=d=>{if(!q("d").value)q("d").value=d;};
+  w.setDateOnly=d=>{if(!q("d").value){q("d").value=d;dl();}};
+  w.forceDate=d=>{q("d").value=d;dl();};
   return w;
 }
-function addHours(v,h){const[d,t]=v.split("T"),[y,mo,da]=d.split("-").map(Number),H=Number(t.slice(0,2)),M=Number(t.slice(3,5));const x=new Date(Date.UTC(y,mo-1,da,H+h,M)),p=n=>String(n).padStart(2,"0");return x.getUTCFullYear()+"-"+p(x.getUTCMonth()+1)+"-"+p(x.getUTCDate())+"T"+p(x.getUTCHours())+":"+p(x.getUTCMinutes());}
+function minsOf(v){const[d,t]=v.split("T"),[y,mo,da]=d.split("-").map(Number);return Date.UTC(y,mo-1,da,Number(t.slice(0,2)),Number(t.slice(3,5)))/60000;}
+function addMinutes(v,mins){const[d,t]=v.split("T"),[y,mo,da]=d.split("-").map(Number),H=Number(t.slice(0,2)),M=Number(t.slice(3,5));const x=new Date(Date.UTC(y,mo-1,da,H,M+mins)),p=n=>String(n).padStart(2,"0");return x.getUTCFullYear()+"-"+p(x.getUTCMonth()+1)+"-"+p(x.getUTCDate())+"T"+p(x.getUTCHours())+":"+p(x.getUTCMinutes());}
 function mkSlot(){
   const d=document.createElement("div");d.className="slot";
-  const sw=mkPl(),ew=mkPl();
-  const r1=document.createElement("div"),r2=document.createElement("div");r1.className=r2.className="rowl";
-  r1.innerHTML="<b>시작</b>";r1.appendChild(sw);r2.innerHTML="<b>종료</b>";r2.appendChild(ew);
-  const sel=document.createElement("select");sel.className="dur";sel.title="시작 시각부터 선택";
-  sel.innerHTML='<option value="">+시간</option>'+[...Array(12)].map((_,i)=>`<option value="${i+1}">${i+1}시간</option>`).join("");
-  sel.onchange=()=>{const n=Number(sel.value);if(!n)return;const v=sw.value;if(!v){alert("먼저 시작 시각을 입력하세요.");sel.value="";return;}ew.value=addHours(v,n);sel.value="";ew.dispatchEvent(new Event("change",{bubbles:true}));};
-  r2.appendChild(sel);
+  const sw=mkPl("시작 날짜"),ew=mkPl("종료 날짜");
+  const g1=document.createElement("div"),g2=document.createElement("div"),g3=document.createElement("div");g1.className=g3.className="grp";g2.className="grp gd";
+  g1.innerHTML="<b>시작</b>";g1.appendChild(sw);g3.innerHTML="<b>종료</b>";g3.appendChild(ew);
+  g2.innerHTML='<b>＋</b><select class="dh"><option value="">시간</option>'+[...Array(13)].map((_,i)=>`<option value="${i}">${i}시간</option>`).join("")+'</select><select class="dm"><option value="">분</option>'+[...Array(12)].map((_,i)=>i*5).map(x=>`<option value="${x}">${x}분</option>`).join("")+'</select>';
+  const dh=g2.querySelector(".dh"),dm=g2.querySelector(".dm");
+  const hint=document.createElement("div");hint.className="k hint hidden";hint.style.cssText="flex:1 1 100%;color:var(--bad)";
+  let auto=false,applying=false;
+  const apply=()=>{
+    const h=Number(dh.value||0),m=Number(dm.value||0);if(!h&&!m){hint.classList.add("hidden");return;}
+    const v=sw.value;
+    if(!v){hint.textContent="시작 날짜와 시각을 먼저 입력하면 종료가 자동으로 채워집니다.";hint.classList.remove("hidden");return;}
+    hint.classList.add("hidden");applying=true;ew.value=addMinutes(v,h*60+m);auto=true;ew.dispatchEvent(new Event("change",{bubbles:true}));applying=false;
+  };
+  const syncDur=()=>{
+    if(!sw.value||!ew.value){return;}
+    const df=minsOf(ew.value)-minsOf(sw.value);
+    if(df>0&&df<=12*60+55&&df%5===0){dh.value=String(Math.floor(df/60));dm.value=String(df%60);}else{dh.value="";dm.value="";}
+  };
+  dh.onchange=dm.onchange=apply;
+  ew.addEventListener("change",()=>{if(!applying){auto=false;syncDur();}});
   ew.onOpen=()=>{const v=sw.value;if(v)ew.setDateOnly(v.slice(0,10));};
-  sw.addEventListener("change",()=>{const v=sw.value;if(v)ew.setDateOnly(v.slice(0,10));});
-  d.append(r1,r2);return d;
+  sw.addEventListener("change",()=>{const v=sw.value;if(v){if(!ew.value)ew.forceDate(v.slice(0,10));if((dh.value||dm.value)&&(auto||!ew.value))apply();else syncDur();}});
+  const today=new Date().toLocaleDateString("sv-SE",{timeZone:TZ});sw.forceDate(today);ew.forceDate(today);
+  d.append(g1,g2,g3,hint);return d;
 }
+
 const slots=()=>Array.from(document.querySelectorAll("#plannedList .slot")).map(d=>{const p=d.querySelectorAll(".pl");return{s:p[0].value,e:p[1].value};}).filter(x=>x.s||x.e);
 function formVals(){return{who:$("who").value.trim(),topic:$("topic").value.trim(),planned:""};}
 function clearForm(){$("who").value="";$("topic").value="";buildForm();$("plannedList").innerHTML="";$("plannedList").appendChild(mkSlot());$("newCard").classList.add("hidden");$("newTop").classList.remove("hidden");$("fab").classList.remove("hidden");}
@@ -521,24 +556,24 @@ function chainTimes(){
   const a=Array.from(document.querySelectorAll("#plannedList .pl"));
   a.forEach((el,i)=>{if(!i)return;const p=a[i-1].value;el.disabled=!p;
     if(!p){if(el.value)el.value="";el.min="";return;}
-    el.min=p;
-    if(el.value&&(i%2?el.value<=p:el.value<p)){el.clearTime();alert(i%2?"종료는 시작보다 늦어야 합니다.":"다음 시작은 앞 종료 이후여야 합니다.");}});
+    el.min=p;el.strict=!!(i%2);
+    if(el.value&&(i%2?el.value<=p:el.value<p)){el.clearTime();notify(i%2?"종료는 시작보다 늦어야 합니다.":"다음 시작은 앞 종료 이후여야 합니다.");}});
 }
 $("plannedList").appendChild(mkSlot());$("plannedList").addEventListener("input",chainTimes);$("plannedList").addEventListener("change",chainTimes);chainTimes();
-$("addTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .slot"),last=a[a.length-1],p=last.querySelectorAll(".pl");if(!p[0].value||!p[1].value){alert("앞 칸의 시작·종료를 먼저 입력하세요.");return;}const n=mkSlot();$("plannedList").appendChild(n);chainTimes();n.querySelector("input").focus();};
+$("addTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .slot"),last=a[a.length-1],p=last.querySelectorAll(".pl");if(!p[0].value||!p[1].value){notify("앞 칸의 시작·종료 시각을 모두 입력해야 칸을 추가할 수 있습니다.");return;}const n=mkSlot(),ed=p[1].value.slice(0,10);n.querySelectorAll(".pl").forEach(x=>x.forceDate(ed));$("plannedList").appendChild(n);chainTimes();n.querySelector("input").focus();};
 $("delTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .slot");if(a.length>1)a[a.length-1].remove();};
 $("by").addEventListener("change",()=>localStorage.setItem(BYKEY,$("by").value.trim()));
 $("planBtn").onclick=async()=>{
   const by=getBy();if(!by)return;const f=formVals();
-  if(!f.who){alert("대상을 입력하세요.");return;}
-  const ts=slots();if(!ts.length||ts.some(x=>!x.s||!x.e)){alert("예정의 시작과 종료를 모두 입력하세요.");return;}
-  for(let i=0;i<ts.length;i++)if(ts[i].e<=ts[i].s||(i&&ts[i].s<ts[i-1].e)){alert("시작·종료 순서를 확인하세요.");return;}
+  if(!f.who){notify("대상을 입력하세요.");return;}
+  const ts=slots();if(!ts.length||ts.some(x=>!x.s||!x.e)){notify("예정의 시작과 종료를 모두 입력하세요.");return;}
+  for(let i=0;i<ts.length;i++)if(ts[i].e<=ts[i].s||(i&&ts[i].s<ts[i-1].e)){notify("시작·종료 순서를 확인하세요.");return;}
   const xo=extrasObj();ts.forEach(p=>plans.push({id:newSid(),by,who:f.who,topic:f.topic,planned:p.s,plannedEnd:p.e,x:xo}));savePlans();
   clearForm();render();
 };
 $("startBtn").onclick=async()=>{
   const by=getBy();if(!by)return;const f=formVals();
-  if(!f.who){alert("대상을 입력하세요.");return;}
+  if(!f.who){notify("대상을 입력하세요.");return;}
   if(await append({type:"start",sid:newSid(),by,who:f.who,topic:f.topic,planned:xJson(extrasObj())})){clearForm();render();}
 };
 const sess=sid=>sessions().find(s=>s.sid===sid);
@@ -547,16 +582,16 @@ function redactLocal(sid){
   events.forEach(f);remoteEv.forEach(f);save();
 }
 async function deleteSession(sid){
-  if(!adminOn()){alert("관리자 비밀번호를 다시 입력하세요. (관리 메뉴)");return;}
+  if(!adminOn()){notify("관리자 비밀번호를 다시 입력하세요. (관리 메뉴)");return;}
   const sent=allEv().some(e=>e.sid===sid&&e.srv);
-  if(getCfg()&&sent&&!viewKey){alert("시트에 이미 저장된 기록이라 시트에서도 지워야 합니다.\n관리 메뉴의 '전체 보기'를 먼저 불러온 뒤 삭제하세요.");return;}
+  if(getCfg()&&sent&&!viewKey){notify("시트에 이미 저장된 기록이라 시트에서도 지워야 합니다.\n관리 메뉴의 '전체 보기'를 먼저 불러온 뒤 삭제하세요.");return;}
   if(!confirm("이 기록을 삭제할까요?\n내용(대상·제목·메모·입력자)이 지워지며 복구할 수 없습니다.\n기록 흐름(번호·해시)만 '삭제됨' 표시로 남습니다."))return;
   adminUntil=Date.now()+10*60000;
   try{
     redactLocal(sid);
     if(getCfg()){await flush();if(viewKey){await remote("redact",{key:viewKey,sid});await loadAll();}}
     connDefault();render();
-  }catch(e){alert("삭제 중 오류: "+e.message);connDefault();render();}
+  }catch(e){notify("삭제 중 오류: "+e.message);connDefault();render();}
 }
 $("main").addEventListener("click",async ev=>{
   const t=ev.target.closest("[data-act]");if(!t)return;
@@ -629,7 +664,7 @@ $("menuEditor").addEventListener("click",e=>{
   if(d){menuCfg.secs.splice(Number(d.dataset.msdel),1);lsSet(MENUKEY,menuCfg);buildMenuEditor();render();return;}
   if(e.target.id==="msAdd"){
     const name=$("msName").value.trim(),field=$("msField").value,value=$("msVal").value.trim();
-    if(!name||!value){alert("구역 이름과 포함할 글자를 입력하세요.");return;}
+    if(!name||!value){notify("구역 이름과 포함할 글자를 입력하세요.");return;}
     menuCfg.secs.push({id:Date.now().toString(36),name,field,value});lsSet(MENUKEY,menuCfg);buildMenuEditor();render();
   }
 });
@@ -746,7 +781,7 @@ $("pdfBtn").onclick=async()=>{
     if(sel("start"))cols.push(["start","시작 시각"]);
     if(sel("end"))cols.push(["end","종료 시각"]);
     if(sel("dur"))cols.push(["dur","소요 시간"]);
-    const tm=o=>o.ms?esc(fmt(o.ms).replace(/\. /g,"-").replace(/-(\d\d:)/," $1").replace(/\.$/,""))+o.mark:"-";
+    const tm=o=>o.ms?esc(fmtMin(o.ms))+o.mark:"-";
     const cell=(c,s,i)=>{
       const st=T(s.startSrv,s.start),en=s.end?T(s.endSrv,s.end):null;
       switch(c){
@@ -756,7 +791,7 @@ $("pdfBtn").onclick=async()=>{
         case "by":return esc(Array.from(new Set([s.startBy,s.endBy].filter(Boolean))).join(", "))||"-";
         case "start":return tm(st);
         case "end":return en?tm(en):"(기록 없음)";
-        case "dur":return en?dur(en.ms-st.ms):"-";
+        case "dur":return en?dur(Math.floor(en.ms/60000)*60000-Math.floor(st.ms/60000)*60000).slice(0,5):"-";
         default:return esc((s.extra||{})[c.slice(2)]||"-");
       }
     };
@@ -764,7 +799,7 @@ $("pdfBtn").onclick=async()=>{
     const span=cols.length;
     const rowsHtml=ss.map((s,i)=>{
       let h=`<tr>${cols.map(c=>`<td>${cell(c[0],s,i)}</td>`).join("")}</tr>`;
-      if(sel("memo")&&s.memos.length)h+=`<tr class="sub"><td></td><td colspan="${span-1}">${s.memos.map(m=>`<div>메모 ${esc(fmtS(m.srv||m.at))} (${esc(m.by)}) — ${esc(m.text)}</div>`).join("")}</td></tr>`;
+      if(sel("memo")&&s.memos.length)h+=`<tr class="sub"><td></td><td colspan="${span-1}">${s.memos.map(m=>`<div>메모 ${esc(fmtHM(m.srv||m.at))} (${esc(m.by)}) — ${esc(m.text)}</div>`).join("")}</td></tr>`;
       if(pdfSel.hash===true)h+=`<tr class="sub"><td></td><td colspan="${span-1}" class="hs">기록 번호(해시 앞 10자) ${s.hashes.map(x=>esc(sx(x))).join(" / ")}</td></tr>`;
       return h;
     });
