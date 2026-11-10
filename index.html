@@ -58,8 +58,12 @@ button:disabled{opacity:.5}
 .page table{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:18px}
 .page td,.page th{border:1px solid #bbb;padding:8px 10px;text-align:left;vertical-align:top}
 .page th{background:#f0f2f6;width:28%;font-weight:500}
-.slot{border-left:3px solid var(--line);padding-left:8px;margin-bottom:8px}.slot .k{margin:2px 0}
-.plw{display:flex;gap:6px;margin-bottom:6px}.plw input{flex:2 1 0;min-width:0}.plw select{flex:1 1 0;min-width:0;padding:10px 4px}
+.slot{border-left:3px solid var(--line);padding-left:8px;margin-bottom:10px}
+.rowl{display:flex;gap:6px;align-items:flex-start;margin-bottom:6px}.rowl>b{flex:0 0 32px;font-size:13px;color:var(--mute);font-weight:500;padding-top:11px}
+.plw{flex:1 1 0;min-width:0}.plr{display:flex;gap:6px}.plr input{flex:1 1 0;min-width:0;padding:9px 3px;font-size:13px}.tbtn{flex:0 0 auto;padding:9px 7px;font-size:14px;white-space:nowrap}
+.dur{flex:0 0 72px;width:72px;padding:9px 2px;font-size:13px}
+.pan{background:#f3f5fa;border-radius:8px;padding:6px 8px;margin-top:6px}.pan .k{margin:0 0 4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{flex:0 0 auto;min-width:48px;padding:8px 6px;background:#fff;color:var(--ink);border:1px solid var(--line)}.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .page .m{font-size:13px;margin:0 0 6px}
 .page.lst table{font-size:12px;margin-bottom:0}
 .page.lst th{width:auto;text-align:center;font-size:12px;padding:6px 6px}
@@ -469,20 +473,45 @@ document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset
 const newSid=()=>"s"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 function mkPl(){
   const w=document.createElement("div");w.className="pl plw";
-  const opt=(a,b)=>`<option value="${a}">${b}</option>`;
-  const hs=[...Array(12)].map((_,i)=>opt(String(i+1),(i+1)+"시")).join(""),ms=[...Array(60)].map((_,i)=>opt(String(i).padStart(2,"0"),String(i).padStart(2,"0")+"분")).join("");
-  w.innerHTML=`<input type="date" data-p="d"><select data-p="a"><option value="">오전/오후</option><option value="AM">오전</option><option value="PM">오후</option></select><select data-p="h"><option value="">시</option>${hs}</select><select data-p="m"><option value="">분</option>${ms}</select>`;
-  const q=k=>w.querySelector('[data-p="'+k+'"]');
-  let mn="";
-  Object.defineProperty(w,"value",{get(){const d=q("d").value,a=q("a").value,h=q("h").value,m=q("m").value;if(!d||!a||!h||m==="")return"";let H=Number(h)%12;if(a==="PM")H+=12;return d+"T"+String(H).padStart(2,"0")+":"+m;},
-    set(v){if(!v){["d","a","h","m"].forEach(k=>q(k).value="");return;}const[d,t]=v.split("T"),H=Number(t.slice(0,2));q("d").value=d;q("a").value=H>=12?"PM":"AM";q("h").value=String(H%12||12);q("m").value=t.slice(3,5);}});
-  Object.defineProperty(w,"disabled",{get(){return q("d").disabled;},set(v){w.querySelectorAll("input,select").forEach(e=>e.disabled=!!v);}});
+  w.innerHTML='<div class="plr"><input type="date" data-p="d"><button type="button" class="sec tbtn" data-p="t">시간</button></div><div class="pan hidden"></div>';
+  const q=k=>w.querySelector('[data-p="'+k+'"]'),pan=w.querySelector(".pan");
+  const st={a:"",h:"",m:""};let mn="",step="";
+  const lab=()=>{q("t").textContent=(st.a&&st.h&&st.m!=="")?(st.a==="AM"?"오전 ":"오후 ")+st.h+":"+st.m:"시간";};
+  const chips=(arr,cur)=>arr.map(x=>`<button type="button" class="chip${String(x[0])===cur?" on":""}" data-v="${x[0]}">${x[1]}</button>`).join("");
+  function show(n){
+    step=n;pan.classList.remove("hidden");
+    if(n==="a")pan.innerHTML='<div class="k">오전 / 오후</div><div class="chips">'+chips([["AM","오전"],["PM","오후"]],st.a)+'</div>';
+    else if(n==="h")pan.innerHTML='<div class="k">시</div><div class="chips">'+chips([...Array(12)].map((_,i)=>[String(i+1),(i+1)+"시"]),st.h)+'</div>';
+    else pan.innerHTML='<div class="k">분 (10분 단위)</div><div class="chips">'+chips(["00","10","20","30","40","50"].map(x=>[x,x+"분"]),st.m)+'</div>';
+  }
+  const hide=()=>{pan.classList.add("hidden");step="";};
+  pan.addEventListener("click",e=>{const c=e.target.closest("[data-v]");if(!c)return;const v=c.dataset.v;
+    if(step==="a"){st.a=v;show("h");}else if(step==="h"){st.h=v;show("m");}else{st.m=v;hide();lab();w.dispatchEvent(new Event("change",{bubbles:true}));}});
+  q("d").addEventListener("change",()=>{if(q("d").value)show("a");});
+  q("d").addEventListener("click",()=>{try{if(!q("d").disabled&&q("d").showPicker)q("d").showPicker();}catch(e){}});
+  q("t").addEventListener("click",()=>{if(w.onOpen)w.onOpen();if(step)hide();else show("a");});
+  Object.defineProperty(w,"value",{get(){const d=q("d").value;if(!d||!st.a||!st.h||st.m==="")return"";let H=Number(st.h)%12;if(st.a==="PM")H+=12;return d+"T"+String(H).padStart(2,"0")+":"+st.m;},
+    set(v){hide();if(!v){q("d").value="";st.a=st.h=st.m="";lab();return;}const[d,t]=v.split("T"),H=Number(t.slice(0,2));q("d").value=d;st.a=H>=12?"PM":"AM";st.h=String(H%12||12);st.m=t.slice(3,5);lab();}});
+  Object.defineProperty(w,"disabled",{get(){return q("d").disabled;},set(v){q("d").disabled=!!v;q("t").disabled=!!v;if(v)hide();}});
   Object.defineProperty(w,"min",{get(){return mn;},set(v){mn=v||"";q("d").min=mn?mn.slice(0,10):"";}});
-  w.clearTime=()=>{["a","h","m"].forEach(k=>q(k).value="");};
-  w.addEventListener("change",e=>{if(e.target.dataset.p==="m")e.target.blur();});
+  w.clearTime=()=>{st.a=st.h=st.m="";lab();hide();};
+  w.setDateOnly=d=>{if(!q("d").value)q("d").value=d;};
   return w;
 }
-function mkSlot(){const d=document.createElement("div");d.className="slot";const a=document.createElement("div");a.className="k";a.textContent="시작";const b=document.createElement("div");b.className="k";b.textContent="종료";d.append(a,mkPl(),b,mkPl());return d;}
+function addHours(v,h){const[d,t]=v.split("T"),[y,mo,da]=d.split("-").map(Number),H=Number(t.slice(0,2)),M=Number(t.slice(3,5));const x=new Date(Date.UTC(y,mo-1,da,H+h,M)),p=n=>String(n).padStart(2,"0");return x.getUTCFullYear()+"-"+p(x.getUTCMonth()+1)+"-"+p(x.getUTCDate())+"T"+p(x.getUTCHours())+":"+p(x.getUTCMinutes());}
+function mkSlot(){
+  const d=document.createElement("div");d.className="slot";
+  const sw=mkPl(),ew=mkPl();
+  const r1=document.createElement("div"),r2=document.createElement("div");r1.className=r2.className="rowl";
+  r1.innerHTML="<b>시작</b>";r1.appendChild(sw);r2.innerHTML="<b>종료</b>";r2.appendChild(ew);
+  const sel=document.createElement("select");sel.className="dur";sel.title="시작 시각부터 선택";
+  sel.innerHTML='<option value="">+시간</option>'+[...Array(12)].map((_,i)=>`<option value="${i+1}">${i+1}시간</option>`).join("");
+  sel.onchange=()=>{const n=Number(sel.value);if(!n)return;const v=sw.value;if(!v){alert("먼저 시작 시각을 입력하세요.");sel.value="";return;}ew.value=addHours(v,n);sel.value="";ew.dispatchEvent(new Event("change",{bubbles:true}));};
+  r2.appendChild(sel);
+  ew.onOpen=()=>{const v=sw.value;if(v)ew.setDateOnly(v.slice(0,10));};
+  sw.addEventListener("change",()=>{const v=sw.value;if(v)ew.setDateOnly(v.slice(0,10));});
+  d.append(r1,r2);return d;
+}
 const slots=()=>Array.from(document.querySelectorAll("#plannedList .slot")).map(d=>{const p=d.querySelectorAll(".pl");return{s:p[0].value,e:p[1].value};}).filter(x=>x.s||x.e);
 function formVals(){return{who:$("who").value.trim(),topic:$("topic").value.trim(),planned:""};}
 function clearForm(){$("who").value="";$("topic").value="";buildForm();$("plannedList").innerHTML="";$("plannedList").appendChild(mkSlot());$("newCard").classList.add("hidden");$("newTop").classList.remove("hidden");$("fab").classList.remove("hidden");}
