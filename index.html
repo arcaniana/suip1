@@ -76,7 +76,7 @@ button:disabled{opacity:.5}
 
 <div id="app" class="hidden">
   <h1 id="title">상담 기록 보관함</h1>
-  <div class="sub" id="conn"></div>
+  <div class="row sp" style="margin-bottom:10px"><div class="sub" id="conn" style="margin:0"></div><button class="sm sec" id="connBtn">🔗 시트 연동</button></div>
 
   <div id="main">
     <div class="card">
@@ -123,9 +123,8 @@ button:disabled{opacity:.5}
     </div>
     <div class="card">
       <b>Google 시트 연결</b>
-      <div class="k">Apps Script 웹 앱 주소와 토큰을 입력하세요. 이 기기에만 저장됩니다. 같은 주소·토큰을 쓰는 사람은 모두 같은 화면을 봅니다.</div>
+      <div class="k">Apps Script 웹 앱 주소를 입력하세요. 이 기기에만 저장됩니다. 같은 주소를 쓰는 사람은 모두 같은 화면을 봅니다. 주소는 남에게 알려주지 마세요.</div>
       <label>웹 앱 주소 (…/exec)</label><input id="cfgUrl" placeholder="https://script.google.com/macros/s/…/exec">
-      <label>토큰</label><input id="cfgTok" type="password">
       <div class="row" style="margin-top:10px"><button id="cfgSave">저장·연결 테스트</button><button class="sec" id="cfgSync">지금 동기화</button></div>
       <div id="cfgMsg" class="msg"></div>
     </div>
@@ -178,10 +177,10 @@ const drafts={};
 const KEY="counsel_records_v2",CFGKEY="counsel_cfg_v1",TTLKEY="counsel_title_v1",BYKEY="counsel_by_v1";
 function load(){try{const r=JSON.parse(localStorage.getItem(KEY)||"{}");authData=r.auth||null;events=r.events||[];return true;}catch(e){return false;}}
 function save(){localStorage.setItem(KEY,JSON.stringify({auth:authData,events}));}
-function getCfg(){try{const c=JSON.parse(localStorage.getItem(CFGKEY)||"null");return c&&c.url&&c.token?c:null;}catch(e){return null;}}
+function getCfg(){try{const c=JSON.parse(localStorage.getItem(CFGKEY)||"null");return c&&c.url?c:null;}catch(e){return null;}}
 async function remote(action,payload){
   const c=getCfg();if(!c)throw new Error("시트 미연결");
-  const r=await fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({token:c.token,action},payload||{}))});
+  const r=await fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(Object.assign({action},payload||{}))});
   const j=await r.json();if(!j.ok){const e=new Error(j.error||"서버 오류");e.code=j.code;throw e;}return j;
 }
 function setConn(h){$("conn").innerHTML=h;}
@@ -381,6 +380,7 @@ $("main").addEventListener("click",async ev=>{
 
 /* ---------- admin ---------- */
 let taps=0,tapT=null;
+$("connBtn").onclick=()=>gate();
 $("title").onclick=()=>{taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,1500);if(taps>=5){taps=0;gate();}};
 function download(name,blob){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}
 async function openAdmin(){
@@ -393,10 +393,10 @@ async function openAdmin(){
 $("closeAdmin").onclick=()=>{$("admin").classList.add("hidden");$("main").classList.remove("hidden");$("fab").classList.remove("hidden");};
 $("ttlBtn").onclick=()=>{const t=$("ttlIn").value.trim();if(!t)return;localStorage.setItem(TTLKEY,t);setTitle(t);};
 $("cfgSave").onclick=async()=>{
-  const url=$("cfgUrl").value.trim(),token=$("cfgTok").value.trim(),m=$("cfgMsg");
-  if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)||!token){m.innerHTML='<span class="err">주소(…/exec)와 토큰을 확인하세요.</span>';return;}
+  const url=$("cfgUrl").value.trim(),m=$("cfgMsg");
+  if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){m.innerHTML='<span class="err">주소(…/exec)를 확인하세요.</span>';return;}
   const old=localStorage.getItem(CFGKEY);
-  localStorage.setItem(CFGKEY,JSON.stringify({url,token}));m.textContent="연결 중…";
+  localStorage.setItem(CFGKEY,JSON.stringify({url}));m.textContent="연결 중…";
   try{
     const j=await remote("list");
     if(events.length&&!j.events.length){
@@ -406,7 +406,7 @@ $("cfgSave").onclick=async()=>{
       m.innerHTML='<span class="ok">연결됨. 시트의 기록 '+j.events.length+'건을 불러왔습니다.</span>';
       events=j.events.sort((a,b)=>a.seq-b.seq);save();
     }
-    $("cfgTok").value="";render();connDefault();
+    render();connDefault();
   }catch(e){if(old)localStorage.setItem(CFGKEY,old);else localStorage.removeItem(CFGKEY);m.innerHTML='<span class="err">연결 실패: '+esc(e.message)+'</span>';connDefault();}
 };
 $("cfgSync").onclick=async()=>{await sync();$("cfgMsg").innerHTML=getCfg()?'<span class="ok">동기화했습니다.</span>':'<span class="err">먼저 연결하세요.</span>';};
