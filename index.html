@@ -93,7 +93,7 @@ input,select,textarea{font-size:16px}
 <div class="wrap">
 
 <div id="lock" class="lock card hidden">
-  <h1 style="cursor:default">🔒 관리 메뉴</h1>
+  <h1 id="lockTitle" style="cursor:default">🔒 관리 메뉴</h1>
   <div class="sub" id="lockHint"></div>
   <input id="pw" type="password" autocomplete="off" placeholder="비밀번호">
   <input id="pw2" type="password" autocomplete="off" placeholder="비밀번호 확인" class="hidden" style="margin-top:8px">
@@ -254,6 +254,17 @@ function applyLabels(){document.querySelectorAll("[data-l]").forEach(el=>{el.tex
 const KEY="counsel_records_v3",OLDKEY="counsel_records_v2",DEVKEY="counsel_dev_v1",CFGKEY="counsel_cfg_v1",TTLKEY="counsel_title_v1",BYKEY="counsel_by_v1";
 function load(){try{let r=JSON.parse(localStorage.getItem(KEY)||"null");if(!r){const o=JSON.parse(localStorage.getItem(OLDKEY)||"{}");r={auth:o.auth||null,events:[]};}authData=r.auth||null;events=r.events||[];return true;}catch(e){return false;}}
 function save(){localStorage.setItem(KEY,JSON.stringify({auth:authData,events}));}
+async function setupManifest(){
+  try{
+    const c=getCfg();if(!c)return;
+    const r=await fetch("manifest.json");const m=await r.json();
+    const base=location.origin+location.pathname;
+    m.start_url=base+"?u="+encodeURIComponent(c.url);m.scope=base;m.id=base;
+    m.icons=(m.icons||[]).map(x=>Object.assign({},x,{src:new URL(x.src,base).href}));
+    const l=document.querySelector('link[rel="manifest"]');
+    l.href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:"application/manifest+json"}));
+  }catch(e){}
+}
 function getCfg(){try{const c=JSON.parse(localStorage.getItem(CFGKEY)||"null");return c&&c.url?c:null;}catch(e){return null;}}
 async function remote(action,payload){
   const c=getCfg();if(!c)throw new Error("시트 미연결");
@@ -310,7 +321,10 @@ function boot(){
     $("pw").classList.add("hidden");$("pwBtn").classList.add("hidden");return;
   }
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
-  try{const u=new URLSearchParams(location.search).get("u");if(u&&/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){localStorage.setItem(CFGKEY,JSON.stringify({url:u}));history.replaceState(null,"",location.pathname);}}catch(e){}
+  try{const u=new URLSearchParams(location.search).get("u");if(u&&/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){localStorage.setItem(CFGKEY,JSON.stringify({url:u}));
+    // 설치된 앱에서는 주소창이 없으니 정리하고, 일반 브라우저에서는 그대로 둬서 "홈 화면에 추가"가 연결 정보까지 담게 한다
+    const sa=(window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone;if(sa)history.replaceState(null,"",location.pathname);}}catch(e){}
+  setupManifest();
   DEV=localStorage.getItem(DEVKEY)||(()=>{const v=hex(crypto.getRandomValues(new Uint8Array(6)));localStorage.setItem(DEVKEY,v);return v;})();
   applyLabels();buildForm();
   $("by").value=localStorage.getItem(BYKEY)||"";
@@ -319,12 +333,12 @@ function boot(){
   setInterval(tick,1000);
 }
 function gate(t){
-  gateTarget=t||"admin";
+  gateTarget=t||"admin";$("lockTitle").textContent=gateTarget==="pdf"?"🔒 "+L("pdfMenu"):"🔒 관리 메뉴";
   $("app").classList.add("hidden");$("fab").classList.add("hidden");$("lock").classList.remove("hidden");
   $("pw").value="";$("pw2").value="";$("lockMsg").textContent="";
   if(getCfg()){$("lockHint").textContent=gateTarget==="pdf"?"PDF 출력 비밀번호를 입력하세요.":"관리자 비밀번호를 입력하세요.";$("pw2").classList.add("hidden");$("pwBtn").dataset.mode="server";}
-  else if(!authData){$("lockHint").textContent="관리 메뉴 비밀번호를 처음 정합니다. (4자 이상)";$("pw2").classList.remove("hidden");$("pwBtn").dataset.mode="set";}
-  else{$("lockHint").textContent="관리 메뉴 비밀번호를 입력하세요.";$("pw2").classList.add("hidden");$("pwBtn").dataset.mode="check";}
+  else if(!authData){$("lockHint").textContent=gateTarget==="pdf"?"이 기기에서 쓸 비밀번호를 처음 정합니다. (4자 이상 · 시트에 연결되지 않은 기기용)":"관리 메뉴 비밀번호를 처음 정합니다. (4자 이상)";$("pw2").classList.remove("hidden");$("pwBtn").dataset.mode="set";}
+  else{$("lockHint").textContent=gateTarget==="pdf"?"비밀번호를 입력하세요. (시트에 연결되지 않은 기기는 이 기기 비밀번호를 씁니다)":"관리 메뉴 비밀번호를 입력하세요.";$("pw2").classList.add("hidden");$("pwBtn").dataset.mode="check";}
   $("pw").focus();
 }
 $("cancelBtn").onclick=()=>{$("lock").classList.add("hidden");$("app").classList.remove("hidden");if($("newCard").classList.contains("hidden"))$("fab").classList.remove("hidden");};
@@ -741,7 +755,7 @@ $("cfgSave").onclick=async()=>{
 $("cfgSync").onclick=async()=>{if(!getCfg()){$("cfgMsg").innerHTML='<span class="err">먼저 연결하세요.</span>';return;}await sync();$("cfgMsg").innerHTML=lastErr?'<span class="err">'+esc(lastErr)+'</span>':'<span class="ok">보냈습니다.</span>';};
 $("linkMake").onclick=()=>{const c=getCfg();$("linkOut").value=c?location.origin+location.pathname+"?u="+encodeURIComponent(c.url):"먼저 시트에 연결하세요.";};
 $("linkCopy").onclick=async()=>{try{await navigator.clipboard.writeText($("linkOut").value);$("cfgMsg").innerHTML='<span class="ok">복사했습니다.</span>';}catch(e){$("cfgMsg").innerHTML='<span class="warn">직접 복사하세요.</span>';}};
-$("cfgOff").onclick=()=>{localStorage.removeItem(CFGKEY);viewKey=null;remoteEv=[];lastErr="";connDefault();render();$("cfgMsg").innerHTML='<span class="ok">연결을 끊었습니다. 이후 기록은 이 기기에만 저장됩니다.</span>';};
+$("cfgOff").onclick=()=>{localStorage.removeItem(CFGKEY);try{if(location.search)history.replaceState(null,"",location.pathname);}catch(e){}viewKey=null;remoteEv=[];lastErr="";connDefault();render();$("cfgMsg").innerHTML='<span class="ok">연결을 끊었습니다. 이후 기록은 이 기기에만 저장됩니다.</span>';};
 $("viewBtn").onclick=async()=>{
   const k=$("viewPw").value;const m=$("viewMsg");if(!getCfg()){m.innerHTML='<span class="err">먼저 시트에 연결하세요.</span>';return;}if(!k){return;}
   m.textContent="불러오는 중…";
