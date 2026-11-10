@@ -58,6 +58,7 @@ button:disabled{opacity:.5}
 .page table{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:18px}
 .page td,.page th{border:1px solid #bbb;padding:8px 10px;text-align:left;vertical-align:top}
 .page th{background:#f0f2f6;width:28%;font-weight:500}
+.slot{border-left:3px solid var(--line);padding-left:8px;margin-bottom:8px}.slot .k{margin:2px 0}
 .plw{display:flex;gap:6px;margin-bottom:6px}.plw input{flex:2 1 0;min-width:0}.plw select{flex:1 1 0;min-width:0;padding:10px 4px}
 .page .m{font-size:13px;margin:0 0 6px}
 .page.lst table{font-size:12px;margin-bottom:0}
@@ -102,7 +103,7 @@ button:disabled{opacity:.5}
       <div id="extraFields"></div>
       <label data-l="planned">예정 시각 (참고용 · 기록에는 저장되지 않음)</label>
       <div id="plannedList"></div>
-      <div class="row"><button class="sm sec" id="addTime" data-l="addTime">＋ 시간 추가</button><button class="sm sec" id="delTime">－ 마지막 시간 삭제</button></div>
+      <div class="row"><button class="sm sec" id="addTime" data-l="addTime">＋ 시간 추가</button><button class="sm sec" id="delTime">－ 마지막 칸 삭제</button></div>
       <div class="row" style="margin-top:12px">
         <button class="sec" id="planBtn" data-l="plan">📅 예정으로 등록</button>
         <button id="startBtn" data-l="start">▶ 지금 바로 시작</button>
@@ -118,7 +119,6 @@ button:disabled{opacity:.5}
   </div>
 
   <div id="admin" class="hidden">
-    <div class="card"><b>관리 (숨김 메뉴)</b><div class="k">제목을 5번 연속 누르면 비밀번호 확인 후 열립니다.</div></div>
     <div class="card">
       <b>이름 편집</b>
       <div class="k" style="margin:4px 0 6px">화면에 보이는 이름을 마음대로 바꿀 수 있습니다. 이 기기에만 저장됩니다.</div>
@@ -126,12 +126,6 @@ button:disabled{opacity:.5}
       <div class="row" style="margin-top:10px"><button id="lbSave">이름 저장</button><button class="sec" id="lbReset">기본값으로</button></div>
       <div id="lbMsg" class="msg"></div>
       <div class="k" style="margin-top:6px">각 항목의 제목은 목록의 ✎ 버튼으로 고칩니다. 고친 내역은 기록으로 남습니다.</div>
-    </div>
-    <div class="card">
-      <b>앱으로 설치</b>
-      <div class="k" style="margin-top:4px">홈 화면에 달리기 아이콘으로 추가해 앱처럼 쓸 수 있습니다.</div>
-      <div class="row" style="margin-top:8px"><button id="installBtn" class="hidden">앱 설치</button></div>
-      <div class="k" id="installHint" style="margin-top:6px">안드로이드·PC 크롬: 주소창 오른쪽 설치 아이콘 또는 브라우저 메뉴 → "앱 설치/홈 화면에 추가"<br>아이폰(사파리): 공유 버튼 → "홈 화면에 추가"</div>
     </div>
     <div class="card">
       <b>입력 항목 편집</b>
@@ -144,6 +138,12 @@ button:disabled{opacity:.5}
       <b>화면 구성</b>
       <div class="k" style="margin:4px 0 6px">메인 화면의 구역을 보이거나 숨기고, 조건에 맞는 기록만 모아 보는 구역을 새로 만듭니다. 이 기기에만 적용됩니다.</div>
       <div id="menuEditor"></div>
+    </div>
+    <div class="card">
+      <b>앱으로 설치</b>
+      <div class="k" style="margin-top:4px">홈 화면에 달리기 아이콘으로 추가해 앱처럼 쓸 수 있습니다.</div>
+      <div class="row" style="margin-top:8px"><button id="installBtn" class="hidden">앱 설치</button></div>
+      <div class="k" id="installHint" style="margin-top:6px">안드로이드·PC 크롬: 주소창 오른쪽 설치 아이콘 또는 브라우저 메뉴 → "앱 설치/홈 화면에 추가"<br>아이폰(사파리): 공유 버튼 → "홈 화면에 추가"</div>
     </div>
     <div class="card">
       <b>Google 시트로 보내기 (단방향)</b>
@@ -417,8 +417,8 @@ function render(){
     ${memos(s)}
     <textarea data-draft="m:${s.sid}" placeholder="${esc(L("memoPh"))}" style="margin-top:8px">${esc(drafts["m:"+s.sid]||"")}</textarea>
     <div class="row" style="margin-top:8px"><button class="sec" data-act="memo" data-sid="${s.sid}">${esc(L("memoBtn"))}</button><button class="bad" data-act="end" data-sid="${s.sid}">${esc(L("end"))}</button>${adminOn()?`<button class="sm bad" data-act="del" data-sid="${s.sid}" style="margin-left:auto">삭제</button>`:""}</div></div>`).join("")||'<div class="k" style="margin:0 2px">없음</div>';
-  $("planList").innerHTML=plans.filter(p=>!filterBy||p.by===filterBy).map(p=>{const s={sid:p.id,topic:p.topic};return `<div class="card">
-    <div class="row sp"><span class="pill plan">예정 ${esc(fmtP(p.planned)||"(시각 미정)")}</span><span class="k">참고용 · 이 기기에만 있음</span></div>
+  $("planList").innerHTML=plans.filter(p=>!filterBy||p.by===filterBy).slice().sort((a,b)=>String(a.planned).localeCompare(String(b.planned))).map(p=>{const s={sid:p.id,topic:p.topic};return `<div class="card">
+    <div class="row sp"><span class="pill plan">예정 ${esc(fmtP(p.planned)||"(시각 미정)")}${p.plannedEnd?" ~ "+esc(fmtP(p.plannedEnd).slice(p.planned&&p.plannedEnd.slice(0,10)===p.planned.slice(0,10)?11:0)):""}</span><span class="k">참고용 · 이 기기에만 있음</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(p.who)}${extraTxt(p.x)?" · "+esc(extraTxt(p.x)):""}</div>
     <div class="row" style="margin-top:8px"><button class="sm" data-act="startPlan" data-sid="${p.id}">${esc(L("startPlan"))}</button><button class="sm sec" data-act="cancelPlan" data-sid="${p.id}">${esc(L("cancelPlan"))}</button></div></div>`;}).join("")||'<div class="k" style="margin:0 2px">없음</div>';
@@ -465,22 +465,29 @@ function mkPl(){
   w.addEventListener("change",e=>{if(e.target.dataset.p==="m")e.target.blur();});
   return w;
 }
-const times=()=>Array.from(document.querySelectorAll("#plannedList .pl")).map(i=>i.value).filter(Boolean);
-function formVals(){return{who:$("who").value.trim(),topic:$("topic").value.trim(),planned:times()[0]||""};}
-function clearForm(){$("who").value="";$("topic").value="";buildForm();$("plannedList").innerHTML="";$("plannedList").appendChild(mkPl());$("newCard").classList.add("hidden");$("newTop").classList.remove("hidden");$("fab").classList.remove("hidden");}
+function mkSlot(){const d=document.createElement("div");d.className="slot";const a=document.createElement("div");a.className="k";a.textContent="시작";const b=document.createElement("div");b.className="k";b.textContent="종료";d.append(a,mkPl(),b,mkPl());return d;}
+const slots=()=>Array.from(document.querySelectorAll("#plannedList .slot")).map(d=>{const p=d.querySelectorAll(".pl");return{s:p[0].value,e:p[1].value};}).filter(x=>x.s||x.e);
+function formVals(){return{who:$("who").value.trim(),topic:$("topic").value.trim(),planned:""};}
+function clearForm(){$("who").value="";$("topic").value="";buildForm();$("plannedList").innerHTML="";$("plannedList").appendChild(mkSlot());$("newCard").classList.add("hidden");$("newTop").classList.remove("hidden");$("fab").classList.remove("hidden");}
 $("fab").onclick=$("newTop").onclick=()=>{$("newTop").classList.add("hidden");$("newCard").classList.remove("hidden");$("fab").classList.add("hidden");$("newCard").scrollIntoView({behavior:"smooth",block:"center"});$("who").focus();};
 $("newClose").onclick=()=>{$("newCard").classList.add("hidden");$("newTop").classList.remove("hidden");$("fab").classList.remove("hidden");};
-function chainTimes(){const a=Array.from(document.querySelectorAll("#plannedList .pl"));a.forEach((el,i)=>{if(!i)return;const p=a[i-1].value;el.disabled=!p;el.min=p||"";if(!p)el.value="";else if(el.value&&el.value<=p){el.clearTime();alert("앞 시간보다 늦은 시각을 선택하세요.");}});}
-$("plannedList").appendChild(mkPl());$("plannedList").addEventListener("input",chainTimes);$("plannedList").addEventListener("change",chainTimes);
-$("addTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .pl"),last=a[a.length-1];if(!last.value){alert("앞 시간을 먼저 입력하세요.");return;}const i=mkPl();i.min=last.value;i.disabled=false;$("plannedList").appendChild(i);i.querySelector("input").focus();};
-$("delTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .pl");if(a.length>1)a[a.length-1].remove();};
+function chainTimes(){
+  const a=Array.from(document.querySelectorAll("#plannedList .pl"));
+  a.forEach((el,i)=>{if(!i)return;const p=a[i-1].value;el.disabled=!p;
+    if(!p){if(el.value)el.value="";el.min="";return;}
+    el.min=p;
+    if(el.value&&(i%2?el.value<=p:el.value<p)){el.clearTime();alert(i%2?"종료는 시작보다 늦어야 합니다.":"다음 시작은 앞 종료 이후여야 합니다.");}});
+}
+$("plannedList").appendChild(mkSlot());$("plannedList").addEventListener("input",chainTimes);$("plannedList").addEventListener("change",chainTimes);chainTimes();
+$("addTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .slot"),last=a[a.length-1],p=last.querySelectorAll(".pl");if(!p[0].value||!p[1].value){alert("앞 칸의 시작·종료를 먼저 입력하세요.");return;}const n=mkSlot();$("plannedList").appendChild(n);chainTimes();n.querySelector("input").focus();};
+$("delTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .slot");if(a.length>1)a[a.length-1].remove();};
 $("by").addEventListener("change",()=>localStorage.setItem(BYKEY,$("by").value.trim()));
 $("planBtn").onclick=async()=>{
   const by=getBy();if(!by)return;const f=formVals();
   if(!f.who){alert("대상을 입력하세요.");return;}
-  const ts=times();if(!ts.length){alert("예정 시각을 입력하세요.");return;}
-  for(let i=1;i<ts.length;i++)if(ts[i]<=ts[i-1]){alert("뒤 시간은 앞 시간보다 늦어야 합니다.");return;}
-  const xo=extrasObj();ts.forEach(p=>plans.push({id:newSid(),by,who:f.who,topic:f.topic,planned:p,x:xo}));savePlans();
+  const ts=slots();if(!ts.length||ts.some(x=>!x.s||!x.e)){alert("예정의 시작과 종료를 모두 입력하세요.");return;}
+  for(let i=0;i<ts.length;i++)if(ts[i].e<=ts[i].s||(i&&ts[i].s<ts[i-1].e)){alert("시작·종료 순서를 확인하세요.");return;}
+  const xo=extrasObj();ts.forEach(p=>plans.push({id:newSid(),by,who:f.who,topic:f.topic,planned:p.s,plannedEnd:p.e,x:xo}));savePlans();
   clearForm();render();
 };
 $("startBtn").onclick=async()=>{
