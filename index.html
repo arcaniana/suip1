@@ -71,7 +71,7 @@ input,select,textarea{font-size:16px}
 .tbtn{flex:0 0 76px;width:76px;height:40px;padding:0 2px;font-size:14px;white-space:nowrap}
 @media(max-width:560px){.slot>.grp:not(.gd){flex:1 1 44%;width:auto}.slot{padding:8px 6px 10px;gap:8px 6px}.slot>.grp{gap:3px}.grp>b{font-size:12px}.tbtn{flex-basis:62px;width:62px;font-size:12px}.dbtn{font-size:12px}.plr{gap:3px}.slot>.grp:nth-child(3){order:2}.slot>.grp.gd{order:3;flex:1 1 100%}.slot>.hint{order:4}}
 .pan{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:30;background:#f3f5fa;border:1px solid var(--line);box-shadow:0 6px 18px rgba(0,0,0,.18);border-radius:10px;padding:8px 10px}.pan.rt{left:auto;right:0}.pan .k{margin:0 0 4px}
-.chips{display:flex;flex-wrap:wrap;gap:6px}.chip:disabled{opacity:.35;cursor:not-allowed}.chip{flex:0 0 auto;min-width:48px;padding:8px 6px;background:#fff;color:var(--ink);border:1px solid var(--line)}.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.pan:has(.minute-grid){width:min(340px,calc(100vw - 28px))}.chips.minute-grid{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px}.chips.minute-grid .chip{min-width:0;width:100%;padding:8px 0;text-align:center}.chip:disabled{opacity:.35;cursor:not-allowed}.chip{flex:0 0 auto;min-width:48px;padding:8px 6px;background:#fff;color:var(--ink);border:1px solid var(--line)}.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .pvw{overflow-x:auto;border:1px solid var(--line);border-radius:8px;max-height:360px;overflow-y:auto}.pv{border-collapse:collapse;font-size:12px;width:100%;min-width:420px}.pv th,.pv td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left;vertical-align:top}.pv th{background:#f0f2f6;position:sticky;top:0}.pv tr.sub td{font-size:11px;color:#555;border-top:none}.pv td.hs{font-size:9px;color:#888;word-break:break-all}
 .mk input{font:inherit}.mk-h1{font-size:20px;font-weight:700;border:1px dashed #b9c3da;background:#fff;margin-bottom:8px}
 .mk-lbl{font-size:13px;padding:5px 8px;border:1px dashed #b9c3da;background:#fff;margin:6px 0 3px}.mk-lbl.bad,.mk input.bad{border-color:var(--bad);background:#fff3f1}
@@ -251,6 +251,7 @@ const FORMKEY="counsel_form_v1",MENUKEY="counsel_menu_v1",PDFKEY="counsel_pdfsel
 let formCfg={who:[],topic:[],fields:[]},menuCfg={hide:{},secs:[]},pdfSel={};
 try{Object.assign(formCfg,JSON.parse(localStorage.getItem(FORMKEY)||"{}"));Object.assign(menuCfg,JSON.parse(localStorage.getItem(MENUKEY)||"{}"));pdfSel=JSON.parse(localStorage.getItem(PDFKEY)||"{}");}catch(e){}
 formCfg.hide=formCfg.hide||{};formCfg.fields=formCfg.fields||[];formCfg.who=formCfg.who||[];formCfg.topic=formCfg.topic||[];menuCfg.hide=menuCfg.hide||{};menuCfg.secs=menuCfg.secs||[];
+formCfg.hide.who=true;formCfg.hide.topic=true;
 const lines=t=>String(t||"").split(/\n/).map(x=>x.trim()).filter(Boolean);
 const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
 const tgOpen={plan:false,all:false};
@@ -316,7 +317,7 @@ async function sync(quiet){
   const sig0=allEv().length;
   try{await flush();}catch(e){}
   if(getCfg()){try{const j=await remote("deleted",{dev:DEV});(j.sids||[]).forEach(redactLocal);}catch(e){}}
-  if(getCfg()){try{const j=await remote("getcfg");if(j.cfg){const n=Object.assign({who:[],topic:[],fields:[],hide:{}},j.cfg);n.hide=n.hide||{};if(JSON.stringify(n)!==JSON.stringify(formCfg)){formCfg=n;lsSet(FORMKEY,formCfg);buildForm(true);}}}catch(e){}}
+  if(getCfg()){try{const j=await remote("getcfg");if(j.cfg){const n=Object.assign({who:[],topic:[],fields:[],hide:{}},j.cfg);n.hide=n.hide||{};n.hide.who=true;n.hide.topic=true;if(JSON.stringify(n)!==JSON.stringify(formCfg)){formCfg=n;lsSet(FORMKEY,formCfg);buildForm(true);}}}catch(e){}}
   if(getCfg()){try{const j=await remote("planids");if(j.ok&&Array.isArray(j.ids)){const keep=new Set(j.ids);plans=plans.filter(p=>keep.has(p.id));savePlans();}}catch(e){}}
   if(viewKey){try{await loadAll();}catch(e){lastErr="불러오기 실패: "+e.message;}}
   connDefault();
@@ -555,7 +556,7 @@ function mkPl(nm){
     pan.classList.toggle("rt",w.getBoundingClientRect().left+310>window.innerWidth);
     if(n==="a")pan.innerHTML='<div class="k">오전 / 오후</div><div class="chips">'+chips([["AM","오전"],["PM","오후"]],st.a,v=>okT(v==="AM"?11*60+55:23*60+55))+'</div>';
     else if(n==="h")pan.innerHTML='<div class="k">시</div><div class="chips">'+chips([...Array(12)].map((_,i)=>[String(i+1),(i+1)+"시"]),st.h,v=>okT(((Number(v)%12)+(st.a==="PM"?12:0))*60+55))+'</div>';
-    else pan.innerHTML='<div class="k">분 (1분 단위)</div><div class="chips">'+chips([...Array(60)].map((_,i)=>String(i).padStart(2,"0")).map(x=>[x,x+"분"]),st.m,v=>okT(H24()*60+Number(v)))+'</div>';
+    else pan.innerHTML='<div class="k">분 (1분 단위)</div><div class="chips minute-grid">'+chips([...Array(60)].map((_,i)=>String(i).padStart(2,"0")).map(x=>[x,x+"분"]),st.m,v=>okT(H24()*60+Number(v)))+'</div>';
   }
   const hide=()=>{pan.classList.add("hidden");step="";};
   pan.addEventListener("click",e=>{const c=e.target.closest("[data-v]");if(!c)return;const v=c.dataset.v;
@@ -607,7 +608,7 @@ function mkSlot(){
 const slots=()=>Array.from(document.querySelectorAll("#plannedList .slot")).map(d=>{const p=d.querySelectorAll(".pl");return{s:p[0].value,e:p[1].value};}).filter(x=>x.s||x.e);
 function formVals(){return{who:$("who").value.trim(),topic:$("topic").value.trim(),planned:""};}
 function clearForm(){$("who").value="";$("topic").value="";buildForm();$("plannedList").innerHTML="";$("plannedList").appendChild(mkSlot());}
-$("fab").onclick=$("newTop").onclick=()=>{$("newTop").classList.add("hidden");$("newCard").classList.remove("hidden");$("fab").classList.add("hidden");$("newCard").scrollIntoView({behavior:"smooth",block:"center"});$("who").focus();};
+$("fab").onclick=$("newTop").onclick=()=>{$("newTop").classList.add("hidden");$("newCard").classList.remove("hidden");$("fab").classList.add("hidden");$("newCard").scrollIntoView({behavior:"smooth",block:"center"});const firstTime=$("plannedList").querySelector("input");if(firstTime)firstTime.focus();};
 $("newClose").onclick=()=>{$("newCard").classList.add("hidden");$("newTop").classList.remove("hidden");$("fab").classList.remove("hidden");};
 function chainTimes(){
   const a=Array.from(document.querySelectorAll("#plannedList .pl"));
@@ -622,7 +623,6 @@ $("delTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .slot"
 $("by").addEventListener("change",()=>localStorage.setItem(BYKEY,$("by").value.trim()));
 $("planBtn").onclick=async()=>{
   const by=getBy();if(!by)return;const f=formVals();
-  if(!f.who&&!formCfg.hide.who){notify("대상을 입력하세요.");return;}
   const ts=slots();if(!ts.length||ts.some(x=>!x.s||!x.e)){notify("예정의 시작과 종료를 모두 입력하세요.");return;}
   for(let i=0;i<ts.length;i++)if(ts[i].e<=ts[i].s||(i&&ts[i].s<ts[i-1].e)){notify("시작·종료 순서를 확인하세요.");return;}
   const xo=extrasObj();let allSynced=true;
@@ -640,7 +640,6 @@ $("planBtn").onclick=async()=>{
 };
 $("startBtn").onclick=async()=>{
   const by=getBy();if(!by)return;const f=formVals();
-  if(!f.who&&!formCfg.hide.who){notify("대상을 입력하세요.");return;}
   if(await append({type:"start",sid:newSid(),by,who:f.who,topic:f.topic,planned:xJson(extrasObj())})){clearForm();render();}
 };
 const sess=sid=>sessions().find(s=>s.sid===sid);
@@ -726,7 +725,7 @@ function buildMock(){
     <div class="mkcard" style="display:flex;align-items:center;gap:10px">${li("by","mk-lbl")}<div class="mkbox" style="flex:1"></div></div>
     ${li("pdfMenu","mk-btn gray")}
     <div class="mkcard"><div class="row sp">${li("newTitle","mk-lbl")}</div>
-      <div class="mkgrid">${fld("who")}${fld("topic")}${extra}</div>
+      <div class="mkgrid">${extra}</div>
       <button class="sm sec" id="mkAdd">＋ 입력칸 추가</button>
       <div class="mkslot">일정 시각 입력 (시작 / 종료 세트)</div>
       <div class="mkbtns">${li("addTime","mk-btn gray")}${li("plan","mk-btn gray")}${li("start","mk-btn blue")}</div>
@@ -761,7 +760,7 @@ $("mock").addEventListener("click",e=>{
   if(b.dataset.show){formCfg.hide[b.dataset.show]=false;saveFormCfg();buildMock();}
 });
 function buildMenuEditor(){
-  const fields=["대상","제목","입력자"].concat(formCfg.fields.map(f=>f.label));
+  const fields=["입력자"].concat(formCfg.fields.map(f=>f.label));
   $("menuEditor").innerHTML=[["live","진행 중 구역 보이기"],["plan","예정 구역 보이기"],["all","전체 기록 구역 보이기"]].map(x=>`<label style="display:flex;gap:8px;align-items:center;margin:4px 0;font-size:14px;color:var(--ink)"><input type="checkbox" data-mh="${x[0]}" ${menuCfg.hide[x[0]]?"":"checked"} style="width:auto">${x[1]}</label>`).join("")+
   `<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:6px"><div class="k">만들어 둔 구역</div>`+
   (menuCfg.secs.map((c,i)=>`<div class="row sp" style="margin:4px 0"><span style="font-size:14px">${esc(c.name)} <span class="k">— ${esc(c.field)}에 "${esc(c.value)}" 포함</span></span><button class="sm bad" data-msdel="${i}">삭제</button></div>`).join("")||'<div class="k">없음</div>')+
