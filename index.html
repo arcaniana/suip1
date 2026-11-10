@@ -72,6 +72,7 @@ input,select,textarea{font-size:16px}
 @media(max-width:560px){.slot>.grp:not(.gd){flex:1 1 44%;width:auto}.slot{padding:8px 6px 10px;gap:8px 6px}.slot>.grp{gap:3px}.grp>b{font-size:12px}.tbtn{flex-basis:62px;width:62px;font-size:12px}.dbtn{font-size:12px}.plr{gap:3px}.slot>.grp:nth-child(3){order:2}.slot>.grp.gd{order:3;flex:1 1 100%}.slot>.hint{order:4}}
 .pan{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:30;background:#f3f5fa;border:1px solid var(--line);box-shadow:0 6px 18px rgba(0,0,0,.18);border-radius:10px;padding:8px 10px}.pan.rt{left:auto;right:0}.pan .k{margin:0 0 4px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}.chip:disabled{opacity:.35;cursor:not-allowed}.chip{flex:0 0 auto;min-width:48px;padding:8px 6px;background:#fff;color:var(--ink);border:1px solid var(--line)}.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.pvw{overflow-x:auto;border:1px solid var(--line);border-radius:8px;max-height:360px;overflow-y:auto}.pv{border-collapse:collapse;font-size:12px;width:100%;min-width:420px}.pv th,.pv td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left;vertical-align:top}.pv th{background:#f0f2f6;position:sticky;top:0}.pv tr.sub td{font-size:11px;color:#555;border-top:none}.pv td.hs{font-size:9px;color:#888;word-break:break-all}
 .page .m{font-size:13px;margin:0 0 6px}
 .page.lst table{font-size:12px;margin-bottom:0}
 .page.lst th{width:auto;text-align:center;font-size:12px;padding:6px 6px}
@@ -204,7 +205,7 @@ input,select,textarea{font-size:16px}
     <div class="k" style="margin-top:6px">비워 두면 전체 기간입니다.</div></div>
   <div class="card"><b>2. 정보 가져오기</b>
     <div class="row" style="margin-top:8px"><button id="pdfLoad">정보 가져오기</button></div>
-    <div id="pdfInfo" class="msg"></div></div>
+    <div id="pdfInfo" class="msg"></div><div id="pdfPreview"></div></div>
   <div class="card"><b>3. PDF에 넣을 항목</b><div id="pdfOpts" style="margin-top:4px"></div></div>
   <div class="card"><b>4. 무결성 확인</b>
     <div class="row" style="margin-top:8px"><button class="sec" id="pdfVerify">검사하기</button></div>
@@ -672,7 +673,7 @@ function buildPdfOpts(){
   const cols=[["topic","제목"],["who","대상"]].concat(formCfg.fields.map(f=>["x:"+f.label,f.label])).concat([["by","입력자"],["start","시작 시각(서버 기준)"],["end","종료 시각(서버 기준)"],["dur","소요 시간"],["memo","메모"],["hash","기록 번호(해시)"]]);
   $("pdfOpts").innerHTML=cols.map(c=>`<label style="display:inline-flex;align-items:center;gap:4px;margin:3px 12px 3px 0;font-size:13px;color:var(--ink)"><input type="checkbox" data-ps="${esc(c[0])}" ${(c[0]==="hash"?pdfSel.hash===true:pdfSel[c[0]]!==false)?"checked":""} style="width:auto">${esc(c[1])}</label>`).join("");
 }
-$("pdfOpts").addEventListener("change",e=>{const c=e.target.closest("[data-ps]");if(!c)return;pdfSel[c.dataset.ps]=c.checked;lsSet(PDFKEY,pdfSel);});
+$("pdfOpts").addEventListener("change",e=>{const c=e.target.closest("[data-ps]");if(!c)return;pdfSel[c.dataset.ps]=c.checked;lsSet(PDFKEY,pdfSel);drawPreview();});
 async function openAdmin(){
   buildFormEditor();buildMenuEditor();
   const c=getCfg();if(c)$("cfgUrl").value=c.url;
@@ -729,7 +730,7 @@ $("npwBtn").onclick=async()=>{
 
 /* ---------- PDF 출력 메뉴 ---------- */
 function openPdf(){
-  pdfLoaded=false;$("pdfBtn").disabled=true;$("pdfInfo").textContent="";$("pdfVerifyMsg").textContent="";$("pdfMsg").textContent="";
+  pdfLoaded=false;$("pdfBtn").disabled=true;$("pdfInfo").textContent="";$("pdfPreview").innerHTML="";$("pdfVerifyMsg").textContent="";$("pdfMsg").textContent="";
   buildPdfOpts();
   $("main").classList.add("hidden");$("fab").classList.add("hidden");$("admin").classList.add("hidden");$("pdfView").classList.remove("hidden");
 }
@@ -747,28 +748,8 @@ const pdfRange=()=>{
   const t=$("to").value?new Date($("to").value+"T23:59:59+09:00").getTime():Infinity;
   return sessions().filter(s=>s.start&&s.start>=f&&s.start<=t).sort((a,b)=>a.start-b.start);
 };
-["from","to"].forEach(id=>$(id).addEventListener("change",()=>{pdfLoaded=false;$("pdfBtn").disabled=true;$("pdfInfo").innerHTML='<span class="warn">기간이 바뀌었습니다. 정보 가져오기를 다시 눌러 주세요.</span>';}));
-$("pdfLoad").onclick=async()=>{
-  const m=$("pdfInfo");m.textContent="가져오는 중…";
-  try{
-    if(getCfg()){await flush();await loadAll(pdfKey);}
-    const r=pdfRange();pdfLoaded=true;$("pdfBtn").disabled=false;
-    m.innerHTML=r.length?'<span class="ok">해당 기간 '+r.length+'건을 가져왔습니다. ('+esc(fmt(r[0].start))+' ~ '+esc(fmt(r[r.length-1].start))+')</span>':'<span class="warn">해당 기간에 시작된 기록이 없습니다.</span>';
-  }catch(e){pdfLoaded=false;$("pdfBtn").disabled=true;m.innerHTML='<span class="err">실패: '+esc(e&&e.message||e)+'</span>';}
-};
-$("pdfVerify").onclick=async()=>{const v=await verify();$("pdfVerifyMsg").innerHTML=v.bad.length?'<span class="err">이상 발견: '+v.bad.map(esc).join(", ")+'</span>':'<span class="ok">정상 — 내부 기록 '+v.n+'줄 모두 연결·내용 일치'+(v.red?' (삭제된 '+v.red+'줄은 내용 없이 연결만 확인)':'')+'</span>';};
-
-/* ---------- PDF ---------- */
-$("pdfBtn").onclick=async()=>{
-  const msg=$("pdfMsg");msg.textContent="만드는 중…";
-  try{
-    if(!window.jspdf||!window.html2canvas){msg.innerHTML='<span class="err">PDF 도구를 불러오지 못했습니다. 인터넷 연결을 확인하세요.</span>';return;}
-    if(!pdfLoaded){msg.innerHTML='<span class="warn">먼저 정보 가져오기를 눌러 주세요.</span>';return;}
-    const ss=pdfRange();
-    if(!ss.length){msg.innerHTML='<span class="warn">해당 기간에 시작된 기록이 없습니다.</span>';return;}
-    const v=await verify();
-    if(document.fonts&&document.fonts.ready)await document.fonts.ready;
-    const {jsPDF}=window.jspdf;const pdf=new jsPDF({unit:"mm",format:"a4"});const box=$("report");
+["from","to"].forEach(id=>$(id).addEventListener("change",()=>{pdfLoaded=false;$("pdfPreview").innerHTML="";$("pdfBtn").disabled=true;$("pdfInfo").innerHTML='<span class="warn">기간이 바뀌었습니다. 정보 가져오기를 다시 눌러 주세요.</span>';}));
+function pdfTable(ss){
     const sel=k=>pdfSel[k]!==false,sx=x=>x.slice(0,10);
     const T=(srv,dev)=>srv?{ms:srv,mark:""}:{ms:dev,mark:"*"};
     const cols=[["no","번호"]];
@@ -804,6 +785,39 @@ $("pdfBtn").onclick=async()=>{
       return h;
     });
     const head=`<tr>${cols.map(c=>`<th>${esc(c[1])}</th>`).join("")}</tr>`;
+  return {head,rowsHtml,anyDev};
+}
+function drawPreview(){
+  const box=$("pdfPreview");
+  if(!pdfLoaded){box.innerHTML="";return;}
+  const ss=pdfRange();
+  if(!ss.length){box.innerHTML="";return;}
+  const t=pdfTable(ss);
+  box.innerHTML='<div class="k" style="margin:8px 0 4px">미리보기 (PDF에 들어갈 내용)</div><div class="pvw"><table class="pv"><thead>'+t.head+'</thead><tbody>'+t.rowsHtml.join("")+'</tbody></table></div>'+(t.anyDev?'<div class="k">* 서버 시각이 없어 기기 시각으로 표시</div>':"");
+}
+$("pdfLoad").onclick=async()=>{
+  const m=$("pdfInfo");m.textContent="가져오는 중…";
+  try{
+    if(getCfg()){await flush();await loadAll(pdfKey);}
+    const r=pdfRange();pdfLoaded=true;$("pdfBtn").disabled=false;
+    m.innerHTML=r.length?'<span class="ok">해당 기간 '+r.length+'건을 가져왔습니다. ('+esc(fmt(r[0].start))+' ~ '+esc(fmt(r[r.length-1].start))+')</span>':'<span class="warn">해당 기간에 시작된 기록이 없습니다.</span>';
+  drawPreview();
+  }catch(e){pdfLoaded=false;$("pdfBtn").disabled=true;m.innerHTML='<span class="err">실패: '+esc(e&&e.message||e)+'</span>';}
+};
+$("pdfVerify").onclick=async()=>{const v=await verify();$("pdfVerifyMsg").innerHTML=v.bad.length?'<span class="err">이상 발견: '+v.bad.map(esc).join(", ")+'</span>':'<span class="ok">정상 — 내부 기록 '+v.n+'줄 모두 연결·내용 일치'+(v.red?' (삭제된 '+v.red+'줄은 내용 없이 연결만 확인)':'')+'</span>';};
+
+/* ---------- PDF ---------- */
+$("pdfBtn").onclick=async()=>{
+  const msg=$("pdfMsg");msg.textContent="만드는 중…";
+  try{
+    if(!window.jspdf||!window.html2canvas){msg.innerHTML='<span class="err">PDF 도구를 불러오지 못했습니다. 인터넷 연결을 확인하세요.</span>';return;}
+    if(!pdfLoaded){msg.innerHTML='<span class="warn">먼저 정보 가져오기를 눌러 주세요.</span>';return;}
+    const ss=pdfRange();
+    if(!ss.length){msg.innerHTML='<span class="warn">해당 기간에 시작된 기록이 없습니다.</span>';return;}
+    const v=await verify();
+    if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    const {jsPDF}=window.jspdf;const pdf=new jsPDF({unit:"mm",format:"a4"});const box=$("report");
+    const {head,rowsHtml,anyDev}=pdfTable(ss);
     const LIMIT=1123-60-56;
     const pages=[];let cur=null,tb=null;
     const mk=()=>{const d=document.createElement("div");d.className="page lst";d.innerHTML=`<h2>${esc(L("pdfTitle"))}</h2><div class="meta">출력 시각 ${esc(fmt(Date.now()))} · 총 ${ss.length}건</div><table><thead>${head}</thead><tbody></tbody></table>`;box.innerHTML="";box.appendChild(d);return d;};
