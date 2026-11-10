@@ -76,7 +76,7 @@ button:disabled{opacity:.5}
 
 <div id="app" class="hidden">
   <h1 id="title" data-l="title">기록 보관함</h1>
-  <div class="row sp" style="margin-bottom:10px"><div class="sub" id="conn" style="margin:0"></div><div class="row" style="flex:0 0 auto"><button class="sm sec hidden" id="viewOff">전체 보기 끄기</button><button class="sm sec" id="connBtn" data-l="linkBtn">🔗 시트 연동</button></div></div>
+  <div class="row sp" style="margin-bottom:10px"><div class="sub" id="conn" style="margin:0"></div><div class="row" style="flex:0 0 auto"><button class="sm sec hidden" id="viewOff">전체 보기 끄기</button></div></div>
 
   <div id="main">
     <div class="card">
@@ -92,7 +92,7 @@ button:disabled{opacity:.5}
         <div><label data-l="who">대상 (이니셜·번호 등)</label><input id="who"></div>
         <div><label data-l="topic">제목</label><input id="topic"></div>
       </div>
-      <label data-l="planned">예정 시각 (여러 시간은 앞에서부터 순서대로 추가)</label>
+      <label data-l="planned">예정 시각 (참고용 · 기록에는 저장되지 않음)</label>
       <div id="plannedList"><input type="datetime-local" class="pl" style="margin-bottom:6px"></div>
       <div class="row"><button class="sm sec" id="addTime" data-l="addTime">＋ 시간 추가</button><button class="sm sec" id="delTime">－ 마지막 시간 삭제</button></div>
       <div class="row" style="margin-top:12px">
@@ -187,7 +187,10 @@ const sha=async s=>hex(await crypto.subtle.digest("SHA-256",new TextEncoder().en
 
 let events=[],remoteEv=[],viewKey=null,DEV="",authData=null,busy=false,filterBy="",editing=null,pendingRender=false,lastSig="";
 const drafts={};
-const LSPEC=[["title","화면 제목","기록 보관함"],["by","입력자 칸 이름","입력자 (내 이름)"],["newTop","새 항목 버튼","＋ 새 기록 / 시간 추가"],["newTitle","새 항목 창 제목","새 기록"],["who","대상 칸 이름","대상 (이니셜·번호 등)"],["topic","제목 칸 이름","제목"],["planned","예정 시각 칸 이름","예정 시각 (여러 시간은 앞에서부터 순서대로 추가)"],["addTime","시간 추가 버튼","＋ 시간 추가"],["plan","예정 등록 버튼","📅 예정으로 등록"],["start","바로 시작 버튼","▶ 지금 바로 시작"],["linkBtn","시트 연동 버튼","🔗 시트 연동"],["live","진행 중 구역 이름","진행 중"],["planH","예정 구역 이름","예정"],["allH","전체 기록 구역 이름","전체 기록 (모든 입력자)"],["startPlan","예정 카드의 시작 버튼","▶ 지금 시작"],["end","종료 버튼","■ 종료"],["memoBtn","메모 저장 버튼","메모 저장"],["memoPh","메모 입력 안내","메모 (시각·입력자와 함께 기록)"],["cancelPlan","예정 취소 버튼","예정 취소"],["done","완료 표시","완료"],["pdfTitle","PDF 제목","기록 확인서"],["pdfFile","PDF·백업 파일 이름 앞부분","기록"]];
+let plans=[];try{plans=JSON.parse(localStorage.getItem("counsel_plans_v1")||"[]");}catch(e){plans=[];}
+const savePlans=()=>{try{localStorage.setItem("counsel_plans_v1",JSON.stringify(plans));}catch(e){}};
+let adminUntil=0,adminWas=false;const adminOn=()=>Date.now()<adminUntil;
+const LSPEC=[["title","화면 제목","기록 보관함"],["by","입력자 칸 이름","입력자 (내 이름)"],["newTop","새 항목 버튼","＋ 새 기록 / 시간 추가"],["newTitle","새 항목 창 제목","새 기록"],["who","대상 칸 이름","대상 (이니셜·번호 등)"],["topic","제목 칸 이름","제목"],["planned","예정 시각 칸 이름","예정 시각 (참고용 · 기록에는 저장되지 않음)"],["addTime","시간 추가 버튼","＋ 시간 추가"],["plan","예정 등록 버튼","📅 예정으로 등록"],["start","바로 시작 버튼","▶ 지금 바로 시작"],["live","진행 중 구역 이름","진행 중"],["planH","예정 구역 이름","예정"],["allH","전체 기록 구역 이름","전체 기록 (모든 입력자)"],["startPlan","예정 카드의 시작 버튼","▶ 지금 시작"],["end","종료 버튼","■ 종료"],["memoBtn","메모 저장 버튼","메모 저장"],["memoPh","메모 입력 안내","메모 (시각·입력자와 함께 기록)"],["cancelPlan","예정 취소 버튼","예정 취소"],["done","완료 표시","완료"],["pdfTitle","PDF 제목","기록 확인서"],["pdfFile","PDF·백업 파일 이름 앞부분","기록"]];
 const DEFLB={};LSPEC.forEach(x=>DEFLB[x[0]]=x[2]);
 let LB=Object.assign({},DEFLB);
 try{Object.assign(LB,JSON.parse(localStorage.getItem("counsel_labels_v1")||"{}"));const old=localStorage.getItem("counsel_title_v1");if(old&&!localStorage.getItem("counsel_labels_v1"))LB.title=old;}catch(e){}
@@ -206,7 +209,7 @@ function setConn(h){$("conn").innerHTML=h;}
 const tkey=e=>e.srv||e.at;
 function allEv(){
   const m=new Map();
-  events.concat(remoteEv).forEach(e=>{const k=e.dev+":"+e.seq,o=m.get(k);if(!o||(!o.srv&&e.srv))m.set(k,e);});
+  events.concat(remoteEv).forEach(e=>{const k=e.dev+":"+e.seq,o=m.get(k);if(!o||(e.del&&!o.del)||(!o.del&&!o.srv&&e.srv))m.set(k,e);});
   return Array.from(m.values()).sort((a,b)=>tkey(a)-tkey(b)||String(a.dev).localeCompare(String(b.dev))||a.seq-b.seq);
 }
 const pendingN=()=>getCfg()?events.filter(e=>!e.srv).length:0;
@@ -216,6 +219,7 @@ function connDefault(){
   let h=c?'<span class="ok">● 시트로 전송 중 (보내기만 함)</span>'+(p?' <span class="warn">· 전송 대기 '+p+'건</span>':''):'<span class="warn">● 이 기기에만 저장됩니다 (시트 미연결)</span>';
   if(lastErr)h+=' <span class="err">· '+esc(lastErr)+'</span>';
   if(viewKey)h+=' <span class="ok">· 전체 보기 중 ('+remoteEv.length+'건)</span>';
+  if(adminOn())h+=' <span class="warn">· 관리자 모드(삭제 가능, 10분)</span>';
   setConn(h);$("viewOff").classList.toggle("hidden",!viewKey);
 }
 async function flush(){
@@ -233,6 +237,7 @@ async function loadAll(){
 async function sync(quiet){
   const sig0=allEv().length;
   try{await flush();}catch(e){}
+  if(getCfg()){try{const j=await remote("deleted",{dev:DEV});(j.sids||[]).forEach(redactLocal);}catch(e){}}
   if(viewKey){try{await loadAll();}catch(e){lastErr="불러오기 실패: "+e.message;}}
   connDefault();
   if(allEv().length!==sig0||!quiet)softRender();
@@ -260,13 +265,21 @@ function boot(){
 function gate(){
   $("app").classList.add("hidden");$("fab").classList.add("hidden");$("lock").classList.remove("hidden");
   $("pw").value="";$("pw2").value="";$("lockMsg").textContent="";
-  if(!authData){$("lockHint").textContent="관리 메뉴 비밀번호를 처음 정합니다. (4자 이상)";$("pw2").classList.remove("hidden");$("pwBtn").dataset.mode="set";}
+  if(getCfg()){$("lockHint").textContent="관리자 비밀번호를 입력하세요.";$("pw2").classList.add("hidden");$("pwBtn").dataset.mode="server";}
+  else if(!authData){$("lockHint").textContent="관리 메뉴 비밀번호를 처음 정합니다. (4자 이상)";$("pw2").classList.remove("hidden");$("pwBtn").dataset.mode="set";}
   else{$("lockHint").textContent="관리 메뉴 비밀번호를 입력하세요.";$("pw2").classList.add("hidden");$("pwBtn").dataset.mode="check";}
   $("pw").focus();
 }
 $("cancelBtn").onclick=()=>{$("lock").classList.add("hidden");$("app").classList.remove("hidden");if($("newCard").classList.contains("hidden"))$("fab").classList.remove("hidden");};
 $("pwBtn").onclick=async()=>{
   const mode=$("pwBtn").dataset.mode,pw=$("pw").value;$("lockMsg").textContent="";
+  if(mode==="server"){
+    $("lockMsg").textContent="확인 중…";
+    try{await remote("auth",{key:pw});viewKey=pw;$("lockMsg").textContent="";}
+    catch(e){$("lockMsg").textContent=e.message==="Failed to fetch"?"서버에 연결할 수 없습니다.":e.message;return;}
+    adminUntil=Date.now()+10*60000;$("lock").classList.add("hidden");$("app").classList.remove("hidden");openAdmin();
+    loadAll().then(()=>{connDefault();softRender();}).catch(()=>{});return;
+  }
   if(mode==="set"){
     if(pw.length<4){$("lockMsg").textContent="4자 이상 입력하세요.";return;}
     if(pw!==$("pw2").value){$("lockMsg").textContent="비밀번호가 서로 다릅니다.";return;}
@@ -274,7 +287,7 @@ $("pwBtn").onclick=async()=>{
     authData={salt,hash:await sha(salt+":"+pw)};
     try{save();}catch(e){$("lockMsg").textContent="저장 실패";return;}
   }else if(await sha(authData.salt+":"+pw)!==authData.hash){$("lockMsg").textContent="비밀번호가 맞지 않습니다.";return;}
-  $("lock").classList.add("hidden");$("app").classList.remove("hidden");openAdmin();
+  adminUntil=Date.now()+10*60000;$("lock").classList.add("hidden");$("app").classList.remove("hidden");openAdmin();
 };
 $("pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("pwBtn").click();});
 
@@ -295,7 +308,7 @@ async function append(p){
   finally{busy=false;}
 }
 async function verify(){
-  const list=allEv(),g={},bad=[],heads=[];
+  const list=allEv(),g={},bad=[],heads=[];let red=0;
   list.forEach(e=>{(g[e.dev||"?"]=g[e.dev||"?"]||[]).push(e);});
   for(const dev of Object.keys(g).sort()){
     const arr=g[dev].sort((a,b)=>a.seq-b.seq);let prev="GENESIS";
@@ -303,33 +316,32 @@ async function verify(){
       const e=arr[i],tag="#"+e.seq+"("+dev.slice(0,4)+")";
       if(e.seq!==i+1)bad.push(tag+" 번호 불연속");
       if(e.prev!==prev)bad.push(tag+" 연결 불일치");
-      if(await sha(canon(e))!==e.hash)bad.push(tag+" 내용 변조 의심");
+      if(e.del)red++;else if(await sha(canon(e))!==e.hash)bad.push(tag+" 내용 변조 의심");
       prev=e.hash;
     }
     heads.push(dev+":"+prev);
   }
-  return{n:list.length,bad,head:heads.length?await sha(heads.join("|")):"GENESIS"};
+  return{n:list.length,bad,red,head:heads.length?await sha(heads.join("|")):"GENESIS"};
 }
 
 /* ---------- sessions ---------- */
 function sessions(){
   const m=new Map();
-  allEv().forEach(e=>{
+  allEv().filter(e=>!e.del).forEach(e=>{
     let s=m.get(e.sid);if(!s){s={sid:e.sid,memos:[],hashes:[],by:new Set(),status:"x",last:0};m.set(e.sid,s);}
     s.hashes.push(String(e.dev).slice(0,4)+"-"+e.seq+":"+e.hash.slice(0,10));s.last=Math.max(s.last,tkey(e));
     if(e.by)s.by.add(e.by);
-    if(e.type==="plan"){s.planAt=e.at;s.planBy=e.by;s.who=e.who;s.topic=e.topic;s.planned=e.planned;s.isPlan=true;}
-    else if(e.type==="start"){s.start=e.at;s.startSrv=e.srv;s.startBy=e.by;if(e.who)s.who=e.who;if(e.topic)s.topic=e.topic;if(e.planned)s.planned=e.planned;}
+    if(e.type==="start"){s.start=e.at;s.startSrv=e.srv;s.startBy=e.by;if(e.who)s.who=e.who;if(e.topic)s.topic=e.topic;}
     else if(e.type==="end"){s.end=e.at;s.endSrv=e.srv;s.endBy=e.by;}
-    else if(e.type==="cancel"){s.cancel=true;s.cancelBy=e.by;}
     else if(e.type==="memo"){s.memos.push({at:e.at,text:e.text,by:e.by});}
     else if(e.type==="retitle"){s.topic=e.text;s.retitled=true;}
   });
-  m.forEach(s=>{s.status=s.end&&s.start?"done":s.start?"live":s.cancel?"cancel":s.isPlan?"plan":"x";s.memos.sort((a,b)=>a.at-b.at);});
+  m.forEach(s=>{s.status=s.end&&s.start?"done":s.start?"live":"x";s.memos.sort((a,b)=>a.at-b.at);});
   return Array.from(m.values()).filter(s=>s.status!=="x");
 }
 const plannedMs=p=>p?new Date(p+":00+09:00").getTime():0;
-function diffTxt(s){
+function diffTxt(s){return "";
+  /* 예정 시각은 저장하지 않음 */
   if(!s.planned||!s.start)return "";
   const d=Math.round((s.start-plannedMs(s.planned))/60000);
   return d===0?"예정 시각과 동일":(d>0?"예정보다 "+d+"분 늦게 시작":"예정보다 "+(-d)+"분 일찍 시작");
@@ -339,8 +351,7 @@ function diffTxt(s){
 function render(){
   const ss=sessions();
   const live=ss.filter(s=>s.status==="live").sort((a,b)=>b.start-a.start);
-  const plan=ss.filter(s=>s.status==="plan").sort((a,b)=>plannedMs(a.planned)-plannedMs(b.planned)||a.planAt-b.planAt);
-  const all=ss.filter(s=>s.status==="done"||s.status==="cancel").sort((a,b)=>b.last-a.last);
+    const all=ss.filter(s=>s.status==="done").sort((a,b)=>b.last-a.last);
   const names=Array.from(new Set(allEv().map(e=>e.by).filter(Boolean)));
   if(filterBy&&!names.includes(filterBy))filterBy="";
   $("byFilter").innerHTML=names.length?['<span class="chip '+(filterBy?"":"on")+'" data-act="filter" data-v="">전체</span>'].concat(names.map(n=>'<span class="chip '+(filterBy===n?"on":"")+'" data-act="filter" data-v="'+esc(n)+'">'+esc(n)+'</span>')).join(""):"";
@@ -352,23 +363,23 @@ function render(){
   $("liveList").innerHTML=live.filter(vis).map(s=>`<div class="card">
     <div class="row sp"><span class="pill live">${esc(L("live"))}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
-    <div class="k">${esc(s.who)}${s.planned?" · 예정 "+esc(fmtP(s.planned)):""}</div>
+    <div class="k">${esc(s.who)}</div>
     <div class="k">시작 ${fmt(s.start)}${s.startSrv?" (서버 "+fmtS(s.startSrv)+")":""} ${esc(diffTxt(s))}</div>
     <div class="timer" data-t="${s.start}">${dur(Date.now()-s.start)}</div>
     ${memos(s)}
     <textarea data-draft="m:${s.sid}" placeholder="${esc(L("memoPh"))}" style="margin-top:8px">${esc(drafts["m:"+s.sid]||"")}</textarea>
-    <div class="row" style="margin-top:8px"><button class="sec" data-act="memo" data-sid="${s.sid}">${esc(L("memoBtn"))}</button><button class="bad" data-act="end" data-sid="${s.sid}">${esc(L("end"))}</button></div></div>`).join("")||'<div class="k" style="margin:0 2px">없음</div>';
-  $("planList").innerHTML=plan.filter(vis).map(s=>`<div class="card">
-    <div class="row sp"><span class="pill plan">예정 ${esc(fmtP(s.planned)||"(시각 미정)")}</span><span class="k">입력자 ${esc(s.planBy)}</span></div>
+    <div class="row" style="margin-top:8px"><button class="sec" data-act="memo" data-sid="${s.sid}">${esc(L("memoBtn"))}</button><button class="bad" data-act="end" data-sid="${s.sid}">${esc(L("end"))}</button>${adminOn()?`<button class="sm bad" data-act="del" data-sid="${s.sid}" style="margin-left:auto">삭제</button>`:""}</div></div>`).join("")||'<div class="k" style="margin:0 2px">없음</div>';
+  $("planList").innerHTML=plans.filter(p=>!filterBy||p.by===filterBy).map(p=>{const s={sid:p.id,topic:p.topic};return `<div class="card">
+    <div class="row sp"><span class="pill plan">예정 ${esc(fmtP(p.planned)||"(시각 미정)")}</span><span class="k">참고용 · 이 기기에만 있음</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
-    <div class="k">${esc(s.who)}</div>
-    <div class="row" style="margin-top:8px"><button class="sm" data-act="startPlan" data-sid="${s.sid}">${esc(L("startPlan"))}</button><button class="sm sec" data-act="cancelPlan" data-sid="${s.sid}">${esc(L("cancelPlan"))}</button></div></div>`).join("")||'<div class="k" style="margin:0 2px">없음</div>';
+    <div class="k">${esc(p.who)}</div>
+    <div class="row" style="margin-top:8px"><button class="sm" data-act="startPlan" data-sid="${p.id}">${esc(L("startPlan"))}</button><button class="sm sec" data-act="cancelPlan" data-sid="${p.id}">${esc(L("cancelPlan"))}</button></div></div>`;}).join("")||'<div class="k" style="margin:0 2px">없음</div>';
   $("doneList").innerHTML=all.filter(vis).map(s=>`<div class="card">
-    <div class="row sp"><span class="pill ${s.status==="done"?"done":""}">${s.status==="done"?L("done")+" "+dur(s.end-s.start):L("cancelPlan")}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
+    <div class="row sp"><span class="pill ${s.status==="done"?"done":""}">${L("done")+" "+dur(s.end-s.start)}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(s.who)}</div>
-    <div class="k">${s.planned?"예정 "+esc(fmtP(s.planned))+" · ":""}${s.start?"시작 "+fmt(s.start)+(s.startSrv?" (서버 "+fmtS(s.startSrv)+")":"")+" · 종료 "+fmt(s.end)+(s.endSrv?" (서버 "+fmtS(s.endSrv)+")":""):""}</div>
-    ${s.start?`<div class="k">${esc(diffTxt(s))}</div>`:""}${memos(s)}</div>`).join("")||'<div class="k" style="margin:0 2px">아직 기록이 없습니다.</div>';
+    <div class="k">${s.start?"시작 "+fmt(s.start)+(s.startSrv?" (서버 "+fmtS(s.startSrv)+")":"")+" · 종료 "+fmt(s.end)+(s.endSrv?" (서버 "+fmtS(s.endSrv)+")":""):""}</div>
+    ${memos(s)}${adminOn()?`<div class="row" style="margin-top:8px;justify-content:flex-end"><button class="sm bad" data-act="del" data-sid="${s.sid}">삭제</button></div>`:""}</div>`).join("")||'<div class="k" style="margin:0 2px">아직 기록이 없습니다.</div>';
   lastSig=sigOf();
 }
 function softRender(){
@@ -377,7 +388,8 @@ function softRender(){
   render();
 }
 document.addEventListener("focusout",()=>{if(pendingRender){pendingRender=false;setTimeout(render,50);}});
-function tick(){document.querySelectorAll("[data-t]").forEach(el=>{el.textContent=dur(Date.now()-Number(el.dataset.t));});}
+function tick(){if(adminWas&&!adminOn()){adminWas=false;render();}else if(adminOn())adminWas=true;
+  document.querySelectorAll("[data-t]").forEach(el=>{el.textContent=dur(Date.now()-Number(el.dataset.t));});}
 document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.draft;if(k)drafts[k]=e.target.value;});
 
 /* ---------- actions ---------- */
@@ -397,40 +409,59 @@ $("planBtn").onclick=async()=>{
   if(!f.who){alert("대상을 입력하세요.");return;}
   const ts=times();if(!ts.length){alert("예정 시각을 입력하세요.");return;}
   for(let i=1;i<ts.length;i++)if(ts[i]<=ts[i-1]){alert("뒤 시간은 앞 시간보다 늦어야 합니다.");return;}
-  let ok=true;for(const p of ts){if(!await append({type:"plan",sid:newSid(),by,who:f.who,topic:f.topic,planned:p})){ok=false;break;}}
-  if(ok){clearForm();render();}
+  ts.forEach(p=>plans.push({id:newSid(),by,who:f.who,topic:f.topic,planned:p}));savePlans();
+  clearForm();render();
 };
 $("startBtn").onclick=async()=>{
   const by=getBy();if(!by)return;const f=formVals();
   if(!f.who){alert("대상을 입력하세요.");return;}
-  if(await append({type:"start",sid:newSid(),by,who:f.who,topic:f.topic,planned:f.planned})){clearForm();render();}
+  if(await append({type:"start",sid:newSid(),by,who:f.who,topic:f.topic})){clearForm();render();}
 };
 const sess=sid=>sessions().find(s=>s.sid===sid);
+function redactLocal(sid){
+  const f=e=>{if(e.sid===sid&&!e.del){e.who="";e.topic="";e.text="";e.by="";e.planned="";e.del=Date.now();}};
+  events.forEach(f);remoteEv.forEach(f);save();
+}
+async function deleteSession(sid){
+  if(!adminOn()){alert("관리자 비밀번호를 다시 입력하세요. (관리 메뉴)");return;}
+  const sent=allEv().some(e=>e.sid===sid&&e.srv);
+  if(getCfg()&&sent&&!viewKey){alert("시트에 이미 저장된 기록이라 시트에서도 지워야 합니다.\n관리 메뉴의 '전체 보기'를 먼저 불러온 뒤 삭제하세요.");return;}
+  if(!confirm("이 기록을 삭제할까요?\n내용(대상·제목·메모·입력자)이 지워지며 복구할 수 없습니다.\n기록 흐름(번호·해시)만 '삭제됨' 표시로 남습니다."))return;
+  adminUntil=Date.now()+10*60000;
+  try{
+    redactLocal(sid);
+    if(getCfg()){await flush();if(viewKey){await remote("redact",{key:viewKey,sid});await loadAll();}}
+    connDefault();render();
+  }catch(e){alert("삭제 중 오류: "+e.message);connDefault();render();}
+}
 $("main").addEventListener("click",async ev=>{
   const t=ev.target.closest("[data-act]");if(!t)return;
   const act=t.dataset.act,sid=t.dataset.sid;
   if(act==="filter"){filterBy=t.dataset.v;render();return;}
   if(act==="editTitle"){editing=sid;render();return;}
   if(act==="cancelEdit"){delete drafts["t:"+editing];editing=null;render();return;}
+  if(act==="del"){await deleteSession(sid);return;}
   const by=getBy();if(!by)return;
   if(act==="saveTitle"){
-    const v=(drafts["t:"+sid]!==undefined?drafts["t:"+sid]:(sess(sid)||{}).topic||"").trim();
-    if(await append({type:"retitle",sid,by,text:v})){delete drafts["t:"+sid];editing=null;render();}
+    const pl=plans.find(p=>p.id===sid);
+    const v=(drafts["t:"+sid]!==undefined?drafts["t:"+sid]:(pl||sess(sid)||{}).topic||"").trim();
+    if(pl){pl.topic=v;savePlans();delete drafts["t:"+sid];editing=null;render();}
+    else if(await append({type:"retitle",sid,by,text:v})){delete drafts["t:"+sid];editing=null;render();}
   }else if(act==="memo"){
     const v=(drafts["m:"+sid]||"").trim();if(!v)return;
     if(await append({type:"memo",sid,by,text:v})){delete drafts["m:"+sid];render();}
   }else if(act==="end"){
     if(confirm("종료할까요?"))append({type:"end",sid,by});
   }else if(act==="startPlan"){
-    const s=sess(sid);if(s)append({type:"start",sid,by,who:s.who,topic:s.topic,planned:s.planned});
+    const p=plans.find(x=>x.id===sid);
+    if(p&&await append({type:"start",sid:newSid(),by,who:p.who,topic:p.topic})){plans=plans.filter(x=>x.id!==sid);savePlans();render();}
   }else if(act==="cancelPlan"){
-    if(confirm("예정을 취소할까요? (취소 기록은 남습니다)"))append({type:"cancel",sid,by});
+    if(confirm("예정을 삭제할까요?")){plans=plans.filter(x=>x.id!==sid);savePlans();render();}
   }
 });
 
 /* ---------- admin ---------- */
 let taps=0,tapT=null;
-$("connBtn").onclick=()=>gate();
 $("title").onclick=()=>{taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,1500);if(taps>=5){taps=0;gate();}};
 function download(name,blob){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}
 async function openAdmin(){
@@ -440,7 +471,7 @@ async function openAdmin(){
   const v=await verify();
   $("anchor").value="[기록 무결성 요약]\n기준시각: "+fmt(Date.now())+"\n기록 수: "+v.n+" / 항목 수: "+sessions().length+"\n최종 해시: "+v.head+"\n체인 검사: "+(v.bad.length?"이상 있음":"정상");
 }
-$("closeAdmin").onclick=()=>{$("admin").classList.add("hidden");$("main").classList.remove("hidden");$("fab").classList.remove("hidden");};
+$("closeAdmin").onclick=()=>{$("admin").classList.add("hidden");$("main").classList.remove("hidden");$("fab").classList.remove("hidden");connDefault();render();};
 function buildLabelEditor(){$("lbList").innerHTML=LSPEC.map(x=>`<label>${esc(x[1])}</label><input data-lk="${x[0]}" value="${esc(L(x[0]))}">`).join("");}
 $("lbSave").onclick=()=>{const o={};document.querySelectorAll("[data-lk]").forEach(i=>{const v=i.value.trim();if(v&&v!==DEFLB[i.dataset.lk])o[i.dataset.lk]=v;});localStorage.setItem("counsel_labels_v1",JSON.stringify(o));LB=Object.assign({},DEFLB,o);applyLabels();render();$("lbMsg").innerHTML='<span class="ok">저장했습니다.</span>';};
 $("lbReset").onclick=()=>{localStorage.removeItem("counsel_labels_v1");localStorage.removeItem("counsel_title_v1");LB=Object.assign({},DEFLB);applyLabels();buildLabelEditor();render();$("lbMsg").innerHTML='<span class="ok">기본값으로 되돌렸습니다.</span>';};
@@ -466,7 +497,7 @@ $("viewBtn").onclick=async()=>{
 };
 function viewOff(){viewKey=null;remoteEv=[];connDefault();render();$("viewMsg").innerHTML='<span class="ok">전체 보기를 해제했습니다.</span>';}
 $("viewOff").onclick=viewOff;$("viewOff2").onclick=viewOff;
-$("verifyBtn").onclick=async()=>{const v=await verify();$("verifyMsg").innerHTML=v.bad.length?'<span class="err">이상 발견: '+v.bad.map(esc).join(", ")+'</span>':'<span class="ok">정상 — 기록 '+v.n+'건 모두 연결·내용 일치</span>';};
+$("verifyBtn").onclick=async()=>{const v=await verify();$("verifyMsg").innerHTML=v.bad.length?'<span class="err">이상 발견: '+v.bad.map(esc).join(", ")+'</span>':'<span class="ok">정상 — 기록 '+v.n+'건 모두 연결·내용 일치'+(v.red?' (삭제된 기록 '+v.red+'건은 내용 없이 연결만 확인)':'')+'</span>';};
 $("anchorBtn").onclick=async()=>{try{await navigator.clipboard.writeText($("anchor").value);$("anchorMsg").innerHTML='<span class="ok">복사했습니다.</span>';}catch(e){$("anchorMsg").innerHTML='<span class="warn">자동 복사가 막혀 있습니다. 위 글을 직접 복사하세요.</span>';}};
 $("backupBtn").onclick=()=>{download(L("pdfFile")+"_백업_"+new Date().toLocaleDateString("sv-SE",{timeZone:TZ})+".json",new Blob([JSON.stringify(events)],{type:"application/json"}));$("anchorMsg").innerHTML='<span class="ok">백업 파일을 저장했습니다.</span>';};
 $("restoreFile").onchange=async ev=>{
@@ -506,7 +537,6 @@ $("pdfBtn").onclick=async()=>{
           <tr><th>제목</th><td>${esc(s.topic)||"-"}</td></tr>
           <tr><th>대상</th><td>${esc(s.who)}</td></tr>
           <tr><th>입력자</th><td>시작 ${esc(s.startBy)||"-"}${s.end?" / 종료 "+esc(s.endBy):""}</td></tr>
-          <tr><th>예정 시각</th><td>${s.planned?esc(fmtP(s.planned)):"-"}</td></tr>
           <tr><th>실제 시작 시각</th><td>${fmt(s.start)}${diffTxt(s)?" ("+esc(diffTxt(s))+")":""}</td></tr>
           <tr><th>서버 기록 시각</th><td>${s.startSrv?"시작 "+fmt(s.startSrv)+(s.endSrv?" / 종료 "+fmt(s.endSrv):""):"(시트 미연결 상태에서 기록됨)"}</td></tr>
           <tr><th>종료 시각</th><td>${s.end?fmt(s.end):"(종료 기록 없음)"}</td></tr>
