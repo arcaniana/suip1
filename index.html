@@ -45,7 +45,7 @@ button:disabled{opacity:.5}
 .ok{color:var(--ok)}.err{color:var(--bad)}.warn{color:var(--warn)}
 .lock{max-width:340px;margin:18vh auto 0}
 input,select,textarea{font-size:16px}
-.hidden{display:none!important}
+.hidden{display:none!important}#fab,#newTop,#newClose{display:none!important}
 #toast{display:none;position:fixed;left:50%;bottom:26px;transform:translateX(-50%);max-width:88vw;background:#1d2330;color:#fff;padding:11px 16px;border-radius:10px;font-size:14px;z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,.3);white-space:pre-line;text-align:center}
 .ttl{font-weight:700;font-size:16px}
 .memo{font-size:13px;margin-top:2px}
@@ -60,7 +60,7 @@ input,select,textarea{font-size:16px}
 .page table{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:18px}
 .page td,.page th{border:1px solid #bbb;padding:8px 10px;text-align:left;vertical-align:top}
 .page th{background:#f0f2f6;width:28%;font-weight:500}
-#plannedList{counter-reset:sl}.slot{background:#f6f8fc;border:1px solid #cfd8ea;border-left:4px solid var(--accent);border-radius:10px;padding:8px 10px 10px;margin-bottom:10px}.slot::before{counter-increment:sl;content:"예정 " counter(sl);flex:1 1 100%;font-size:12px;font-weight:600;color:var(--accent)}
+#plannedList{counter-reset:sl}.slot{background:#f6f8fc;border:1px solid #cfd8ea;border-left:4px solid var(--accent);border-radius:10px;padding:8px 10px 10px;margin-bottom:10px}.slot::before{counter-increment:sl;content:"일정 " counter(sl);flex:1 1 100%;font-size:12px;font-weight:600;color:var(--accent)}
 .slot{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:flex-start;position:relative}
 .grp{display:flex;gap:6px;align-items:center;flex:0 0 226px;width:226px;min-width:0}
 .grp>b{flex:0 0 auto;font-size:13px;color:var(--mute);font-weight:500}
@@ -107,23 +107,23 @@ input,select,textarea{font-size:16px}
 
   <div id="main">
     <div class="card">
-      <div class="row g">
-        <div><label data-l="by">입력자 (내 이름)</label><input id="by"></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <label data-l="by" for="by" style="flex:0 0 auto;margin:0;font-size:16px;font-weight:700;color:var(--ink);white-space:nowrap">입력자 (내 이름)</label>
+        <input id="by" style="flex:1 1 auto;min-width:0;margin:0">
       </div>
     </div>
 
     <button id="newTop" style="width:100%;margin-bottom:10px;padding:12px" data-l="newTop">＋ 새 기록 / 시간 추가</button>
-    <div class="card hidden" id="newCard">
-      <div class="row sp"><b data-l="newTitle">새 기록</b><button class="sm sec" id="newClose">닫기</button></div>
+    <div class="card" id="newCard">
+      <div id="newTitleB" data-l="newTitle" style="user-select:none;-webkit-user-select:none;font-size:22px;font-weight:800;color:var(--accent);background:#eef3ff;border:1px solid #cfd8ea;border-radius:10px;padding:14px 12px;margin-bottom:12px;text-align:center;letter-spacing:1px">새 기록</div><button class="sm sec" id="newClose">닫기</button>
       <div class="row g">
         <div id="wWho"><label data-l="who">대상 (이니셜·번호 등)</label><input id="who"></div>
         <div id="wTopic"><label data-l="topic">제목</label><input id="topic"></div>
       </div>
       <datalist id="dl-who"></datalist><datalist id="dl-topic"></datalist>
       <div id="extraFields"></div>
-      <label data-l="planned">예정 시각 (참고용 · 기록에는 저장되지 않음)</label>
       <div id="plannedList"></div>
-      <div class="row"><button class="sm sec" id="addTime" data-l="addTime">＋ 시간 추가</button><button class="sm sec" id="delTime">－ 마지막 칸 삭제</button></div>
+      <div class="row" id="timeRow"><button class="sm sec" id="addTime" data-l="addTime">＋ 시간 추가</button><button class="sm sec" id="delTime">－ 마지막 칸 삭제</button></div>
       <div class="row" style="margin-top:12px">
         <button class="sec" id="planBtn" data-l="plan">📅 예정으로 등록</button>
         <button id="startBtn" data-l="start">▶ 지금 바로 시작</button>
@@ -144,6 +144,8 @@ input,select,textarea{font-size:16px}
       <b>화면 편집</b>
       <div class="k" style="margin:4px 0 8px">메인 화면과 같은 모양입니다. 글자를 바로 고치면 자동 저장됩니다. (이름은 이 기기에만, 입력칸 구성은 시트에 연결되고 관리자로 들어와 있으면 모든 기기에 반영됩니다.)</div>
       <div id="mock"></div>
+      <label style="display:flex;gap:8px;align-items:center;margin:12px 0 0;font-size:14px;color:var(--ink)"><input type="checkbox" id="secOpt" style="width:auto">기록 시각을 초까지 표시 (끄면 분까지만 표시)</label>
+      <div class="k">표시만 바뀝니다. 기록 자체에는 서버가 받은 정확한 시각이 그대로 저장됩니다.</div>
       <div class="row" style="margin-top:12px"><button class="sec sm" id="lbReset">이름 기본값으로</button></div>
       <div id="lbMsg" class="msg"></div>
     </div>
@@ -221,8 +223,9 @@ input,select,textarea{font-size:16px}
 "use strict";
 const $=id=>document.getElementById(id);
 const TZ="Asia/Seoul";
-const fmt=ms=>ms?new Date(ms).toLocaleString("ko-KR",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}):"";
-const fmtS=ms=>ms?new Date(ms).toLocaleTimeString("ko-KR",{timeZone:TZ,hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"}):"";
+let showSec=false;try{showSec=localStorage.getItem("counsel_sec_v1")==="1";}catch(e){}
+const fmt=ms=>ms?new Date(ms).toLocaleString("ko-KR",Object.assign({timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false},showSec?{second:"2-digit"}:{})):"";
+const fmtS=ms=>ms?new Date(ms).toLocaleTimeString("ko-KR",Object.assign({timeZone:TZ,hour12:false,hour:"2-digit",minute:"2-digit"},showSec?{second:"2-digit"}:{})):"";
 const fmtHM=ms=>ms?new Date(ms).toLocaleTimeString("ko-KR",{timeZone:TZ,hour12:false,hour:"2-digit",minute:"2-digit"}):"";
 const fmtMin=ms=>ms?new Date(ms).toLocaleString("sv-SE",{timeZone:TZ,hour12:false,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
 const fmtP=p=>p?p.replace("T"," "):"";
@@ -244,7 +247,7 @@ const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
 const tgOpen={plan:false,all:false};
 let pdfKey=null,pdfLoaded=false,gateTarget="admin";
 let adminUntil=0,adminWas=false;const adminOn=()=>Date.now()<adminUntil;
-const LSPEC=[["title","화면 제목","기록 보관함"],["by","입력자 칸 이름","입력자 (내 이름)"],["newTop","새 항목 버튼","＋ 새 기록 / 시간 추가"],["newTitle","새 항목 창 제목","새 기록"],["who","대상 칸 이름","대상 (이니셜·번호 등)"],["topic","제목 칸 이름","제목"],["planned","예정 시각 칸 이름","예정 시각 (참고용 · 기록에는 저장되지 않음)"],["addTime","시간 추가 버튼","＋ 시간 추가"],["plan","예정 등록 버튼","📅 예정으로 등록"],["start","바로 시작 버튼","▶ 지금 바로 시작"],["live","진행 중 구역 이름","진행 중"],["planH","예정 구역 이름","예정"],["allH","전체 기록 구역 이름","전체 기록 (모든 입력자)"],["startPlan","예정 카드의 시작 버튼","▶ 지금 시작"],["end","종료 버튼","■ 종료"],["memoBtn","메모 저장 버튼","메모 저장"],["memoPh","메모 입력 안내","메모 (시각·입력자와 함께 기록)"],["cancelPlan","예정 취소 버튼","예정 취소"],["done","완료 표시","완료"],["pdfMenu","PDF 출력 메뉴 이름","PDF 출력"],["pdfTitle","PDF 제목","기록 확인서"],["pdfFile","PDF·백업 파일 이름 앞부분","기록"]];
+const LSPEC=[["title","화면 제목","기록 보관함"],["by","입력자 칸 이름","입력자 (내 이름)"],["newTop","새 항목 버튼","＋ 새 기록 / 시간 추가"],["newTitle","새 항목 창 제목","새 기록"],["who","대상 칸 이름","대상 (이니셜·번호 등)"],["topic","제목 칸 이름","제목"],["planned","일정 시각 칸 이름","일정 시각 (참고용 · 기록에는 저장되지 않음)"],["addTime","시간 추가 버튼","＋ 시간 추가"],["plan","예정 등록 버튼","📅 예정으로 등록"],["start","바로 시작 버튼","▶ 지금 바로 시작"],["live","진행 중 구역 이름","진행 중"],["planH","예정 구역 이름","예정"],["allH","전체 기록 구역 이름","전체 기록 (모든 입력자)"],["startPlan","예정 카드의 시작 버튼","▶ 지금 시작"],["end","종료 버튼","■ 종료"],["memoBtn","메모 저장 버튼","메모 저장"],["memoPh","메모 입력 안내","메모 (시각·입력자와 함께 기록)"],["cancelPlan","예정 취소 버튼","예정 취소"],["done","완료 표시","완료"],["pdfMenu","PDF 출력 메뉴 이름","PDF 출력"],["pdfTitle","PDF 제목","기록 확인서"],["pdfFile","PDF·백업 파일 이름 앞부분","기록"]];
 const DEFLB={};LSPEC.forEach(x=>DEFLB[x[0]]=x[2]);
 let LB=Object.assign({},DEFLB);
 try{Object.assign(LB,JSON.parse(localStorage.getItem("counsel_labels_v1")||"{}"));const old=localStorage.getItem("counsel_title_v1");if(old&&!localStorage.getItem("counsel_labels_v1"))LB.title=old;}catch(e){}
@@ -259,7 +262,7 @@ async function setupManifest(){
     const c=getCfg();if(!c)return;
     const r=await fetch("manifest.json");const m=await r.json();
     const base=location.origin+location.pathname;
-    m.start_url=base+"?u="+encodeURIComponent(c.url);m.scope=base;m.id=base;
+    m.start_url=base+"?u="+encodeURIComponent(c.url);m.scope=base;m.id=base+"?app=rec2";
     m.icons=(m.icons||[]).map(x=>Object.assign({},x,{src:new URL(x.src,base).href}));
     const l=document.querySelector('link[rel="manifest"]');
     l.href=URL.createObjectURL(new Blob([JSON.stringify(m)],{type:"application/manifest+json"}));
@@ -570,7 +573,7 @@ function mkSlot(){
 
 const slots=()=>Array.from(document.querySelectorAll("#plannedList .slot")).map(d=>{const p=d.querySelectorAll(".pl");return{s:p[0].value,e:p[1].value};}).filter(x=>x.s||x.e);
 function formVals(){return{who:$("who").value.trim(),topic:$("topic").value.trim(),planned:""};}
-function clearForm(){$("who").value="";$("topic").value="";buildForm();$("plannedList").innerHTML="";$("plannedList").appendChild(mkSlot());$("newCard").classList.add("hidden");$("newTop").classList.remove("hidden");$("fab").classList.remove("hidden");}
+function clearForm(){$("who").value="";$("topic").value="";buildForm();$("plannedList").innerHTML="";$("plannedList").appendChild(mkSlot());}
 $("fab").onclick=$("newTop").onclick=()=>{$("newTop").classList.add("hidden");$("newCard").classList.remove("hidden");$("fab").classList.add("hidden");$("newCard").scrollIntoView({behavior:"smooth",block:"center"});$("who").focus();};
 $("newClose").onclick=()=>{$("newCard").classList.add("hidden");$("newTop").classList.remove("hidden");$("fab").classList.remove("hidden");};
 function chainTimes(){
@@ -641,6 +644,11 @@ $("main").addEventListener("click",async ev=>{
 });
 
 /* ---------- admin ---------- */
+let advOn=false;try{localStorage.removeItem("counsel_adv_v1");}catch(e){}
+function applyAdv(){$("timeRow").classList.toggle("hidden",!advOn);$("planBtn").classList.toggle("hidden",!advOn);}
+applyAdv();
+let aTaps=0,aT=null;
+$("newTitleB").onclick=()=>{aTaps++;clearTimeout(aT);aT=setTimeout(()=>aTaps=0,1500);if(aTaps>=5){aTaps=0;advOn=!advOn;applyAdv();notify(advOn?"시간 추가·예정 등록 버튼을 표시합니다.":"시간 추가·예정 등록 버튼을 숨겼습니다.");}};
 let taps=0,tapT=null;
 $("title").onclick=()=>{taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,1500);if(taps>=5){taps=0;gate("admin");}};
 function download(name,blob){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}
@@ -662,7 +670,9 @@ function saveLabels(){
   localStorage.setItem("counsel_labels_v1",JSON.stringify(o));LB=Object.assign({},DEFLB,o);applyLabels();buildPdfOpts();render();
   $("lbMsg").innerHTML='<span class="ok">자동 저장됨</span>';
 }
+$("secOpt").onchange=()=>{showSec=$("secOpt").checked;try{localStorage.setItem("counsel_sec_v1",showSec?"1":"0");}catch(e){}render();};
 function buildMock(){
+  $("secOpt").checked=showSec;
   const li=(k,cls)=>`<input class="${cls}" data-lk="${k}" value="${esc(L(k))}">`;
   const fld=(key,name)=>formCfg.hide[key]
     ?`<div class="mkf off"><div class="k">${esc(L(key))} — 숨김</div><button class="sm sec" data-show="${key}">다시 표시</button></div>`
@@ -670,14 +680,12 @@ function buildMock(){
   const extra=formCfg.fields.map((f,i)=>`<div class="mkf"><input class="mk-lbl" data-fl="${i}" value="${esc(f.label)}"><div class="mkbox"></div><details><summary>선택지</summary><textarea data-fo="${i}" placeholder="한 줄에 하나씩">${esc((f.opts||[]).join("\n"))}</textarea></details><button class="sm bad" data-fdel="${i}">칸 없애기</button></div>`).join("");
   $("mock").innerHTML=`<div class="mk">
     ${li("title","mk-h1")}
-    <div class="mkcard">${li("by","mk-lbl")}<div class="mkbox"></div></div>
-    ${li("newTop","mk-btn blue")}
+    <div class="mkcard" style="display:flex;align-items:center;gap:10px">${li("by","mk-lbl")}<div class="mkbox" style="flex:1"></div></div>
     ${li("pdfMenu","mk-btn gray")}
     <div class="mkcard"><div class="row sp">${li("newTitle","mk-lbl")}</div>
       <div class="mkgrid">${fld("who")}${fld("topic")}${extra}</div>
       <button class="sm sec" id="mkAdd">＋ 입력칸 추가</button>
-      ${li("planned","mk-lbl")}
-      <div class="mkslot">예정 시각 입력 (시작 / 종료 세트)</div>
+      <div class="mkslot">일정 시각 입력 (시작 / 종료 세트)</div>
       <div class="mkbtns">${li("addTime","mk-btn gray")}${li("plan","mk-btn gray")}${li("start","mk-btn blue")}</div>
     </div>
     <div class="mkcap">구역 이름</div>
