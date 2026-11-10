@@ -9,9 +9,9 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="상담기록">
+<meta name="apple-mobile-web-app-title" content="기록">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<title>상담 기록 보관함</title>
+<title>기록 보관함</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -75,34 +75,35 @@ button:disabled{opacity:.5}
 </div>
 
 <div id="app" class="hidden">
-  <h1 id="title">상담 기록 보관함</h1>
-  <div class="row sp" style="margin-bottom:10px"><div class="sub" id="conn" style="margin:0"></div><button class="sm sec" id="connBtn">🔗 시트 연동</button></div>
+  <h1 id="title" data-l="title">기록 보관함</h1>
+  <div class="row sp" style="margin-bottom:10px"><div class="sub" id="conn" style="margin:0"></div><button class="sm sec" id="connBtn" data-l="linkBtn">🔗 시트 연동</button></div>
 
   <div id="main">
     <div class="card">
       <div class="row g">
-        <div><label>입력자 (내 이름)</label><input id="by" placeholder="예: 김선생"></div>
+        <div><label data-l="by">입력자 (내 이름)</label><input id="by" placeholder="예: 김선생"></div>
       </div>
     </div>
 
+    <button id="newTop" style="width:100%;margin-bottom:10px;padding:12px" data-l="newTop">＋ 새 기록 / 시간 추가</button>
     <div class="card hidden" id="newCard">
-      <div class="row sp"><b>새 상담</b><button class="sm sec" id="newClose">닫기</button></div>
+      <div class="row sp"><b data-l="newTitle">새 기록</b><button class="sm sec" id="newClose">닫기</button></div>
       <div class="row g">
-        <div><label>상담 대상 (이니셜·번호 등)</label><input id="who" placeholder="예: 5-2 김○○ 학부모"></div>
-        <div><label>상담 제목</label><input id="topic" placeholder="예: 학교생활 상담"></div>
+        <div><label data-l="who">대상 (이니셜·번호 등)</label><input id="who" placeholder="예: 5-2 김○○ 학부모"></div>
+        <div><label data-l="topic">제목</label><input id="topic" placeholder="예: 학교생활"></div>
       </div>
-      <label>예정 시각 (예정으로 등록할 때 입력 · 여러 시간대를 추가할 수 있습니다)</label>
+      <label data-l="planned">예정 시각 (여러 시간은 앞에서부터 순서대로 추가)</label>
       <div id="plannedList"><input type="datetime-local" class="pl" style="margin-bottom:6px"></div>
-      <button class="sm sec" id="addTime">＋ 상담 시간 추가</button>
+      <div class="row"><button class="sm sec" id="addTime" data-l="addTime">＋ 시간 추가</button><button class="sm sec" id="delTime">－ 마지막 시간 삭제</button></div>
       <div class="row" style="margin-top:12px">
-        <button class="sec" id="planBtn">📅 예정으로 등록</button>
-        <button id="startBtn">▶ 지금 바로 시작</button>
+        <button class="sec" id="planBtn" data-l="plan">📅 예정으로 등록</button>
+        <button id="startBtn" data-l="start">▶ 지금 바로 시작</button>
       </div>
     </div>
 
-    <h3>진행 중</h3><div id="liveList"></div>
-    <h3>예정</h3><div id="planList"></div>
-    <h3>전체 기록 (모든 입력자)</h3>
+    <h3 data-l="live">진행 중</h3><div id="liveList"></div>
+    <h3 data-l="planH">예정</h3><div id="planList"></div>
+    <h3 data-l="allH">전체 기록 (모든 입력자)</h3>
     <div class="fl" id="byFilter"></div>
     <div id="doneList"></div>
   </div>
@@ -110,10 +111,12 @@ button:disabled{opacity:.5}
   <div id="admin" class="hidden">
     <div class="card"><b>관리 (숨김 메뉴)</b><div class="k">제목을 5번 연속 누르면 비밀번호 확인 후 열립니다.</div></div>
     <div class="card">
-      <b>제목 편집</b>
-      <label>화면 제목</label><input id="ttlIn">
-      <div class="row" style="margin-top:8px"><button class="sec" id="ttlBtn">제목 저장</button></div>
-      <div class="k" style="margin-top:6px">각 상담의 제목은 목록의 ✎ 버튼으로 고칩니다. 고친 내역은 기록으로 남습니다.</div>
+      <b>이름 편집</b>
+      <div class="k" style="margin:4px 0 6px">화면에 보이는 이름을 마음대로 바꿀 수 있습니다. 이 기기에만 저장됩니다.</div>
+      <div id="lbList"></div>
+      <div class="row" style="margin-top:10px"><button id="lbSave">이름 저장</button><button class="sec" id="lbReset">기본값으로</button></div>
+      <div id="lbMsg" class="msg"></div>
+      <div class="k" style="margin-top:6px">각 항목의 제목은 목록의 ✎ 버튼으로 고칩니다. 고친 내역은 기록으로 남습니다.</div>
     </div>
     <div class="card">
       <b>앱으로 설치</b>
@@ -156,7 +159,7 @@ button:disabled{opacity:.5}
   </div>
 </div>
 </div>
-<button class="fab" id="fab" title="새 상담 / 상담 시간 추가">＋</button>
+<button class="fab" id="fab" title="새 기록">＋</button>
 <div id="report"></div>
 
 <script>
@@ -165,7 +168,7 @@ button:disabled{opacity:.5}
 const $=id=>document.getElementById(id);
 const TZ="Asia/Seoul";
 const fmt=ms=>ms?new Date(ms).toLocaleString("ko-KR",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}):"";
-const fmtS=ms=>fmt(ms).slice(11);
+const fmtS=ms=>ms?new Date(ms).toLocaleTimeString("ko-KR",{timeZone:TZ,hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"}):"";
 const fmtP=p=>p?p.replace("T"," "):"";
 const dur=ms=>{ms=Math.max(0,Math.floor(ms/1000));return String(Math.floor(ms/3600)).padStart(2,"0")+":"+String(Math.floor(ms%3600/60)).padStart(2,"0")+":"+String(ms%60).padStart(2,"0");};
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -174,6 +177,12 @@ const sha=async s=>hex(await crypto.subtle.digest("SHA-256",new TextEncoder().en
 
 let events=[],authData=null,busy=false,filterBy="",editing=null,pendingRender=false,lastSig="";
 const drafts={};
+const LSPEC=[["title","화면 제목","기록 보관함"],["by","입력자 칸 이름","입력자 (내 이름)"],["newTop","새 항목 버튼","＋ 새 기록 / 시간 추가"],["newTitle","새 항목 창 제목","새 기록"],["who","대상 칸 이름","대상 (이니셜·번호 등)"],["topic","제목 칸 이름","제목"],["planned","예정 시각 칸 이름","예정 시각 (여러 시간은 앞에서부터 순서대로 추가)"],["addTime","시간 추가 버튼","＋ 시간 추가"],["plan","예정 등록 버튼","📅 예정으로 등록"],["start","바로 시작 버튼","▶ 지금 바로 시작"],["linkBtn","시트 연동 버튼","🔗 시트 연동"],["live","진행 중 구역 이름","진행 중"],["planH","예정 구역 이름","예정"],["allH","전체 기록 구역 이름","전체 기록 (모든 입력자)"],["startPlan","예정 카드의 시작 버튼","▶ 지금 시작"],["end","종료 버튼","■ 종료"],["memoBtn","메모 저장 버튼","메모 저장"],["memoPh","메모 입력 안내","메모 (시각·입력자와 함께 기록)"],["cancelPlan","예정 취소 버튼","예정 취소"],["done","완료 표시","완료"],["pdfTitle","PDF 제목","기록 확인서"],["pdfFile","PDF·백업 파일 이름 앞부분","기록"]];
+const DEFLB={};LSPEC.forEach(x=>DEFLB[x[0]]=x[2]);
+let LB=Object.assign({},DEFLB);
+try{Object.assign(LB,JSON.parse(localStorage.getItem("counsel_labels_v1")||"{}"));const old=localStorage.getItem("counsel_title_v1");if(old&&!localStorage.getItem("counsel_labels_v1"))LB.title=old;}catch(e){}
+const L=k=>LB[k]||DEFLB[k];
+function applyLabels(){document.querySelectorAll("[data-l]").forEach(el=>{el.textContent=L(el.dataset.l);});document.title=L("title");$("fab").title=L("newTop");}
 const KEY="counsel_records_v2",CFGKEY="counsel_cfg_v1",TTLKEY="counsel_title_v1",BYKEY="counsel_by_v1";
 function load(){try{const r=JSON.parse(localStorage.getItem(KEY)||"{}");authData=r.auth||null;events=r.events||[];return true;}catch(e){return false;}}
 function save(){localStorage.setItem(KEY,JSON.stringify({auth:authData,events}));}
@@ -206,13 +215,12 @@ function boot(){
     $("pw").classList.add("hidden");$("pwBtn").classList.add("hidden");return;
   }
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
-  const t=localStorage.getItem(TTLKEY);if(t)setTitle(t);
+  applyLabels();
   $("by").value=localStorage.getItem(BYKEY)||"";
   $("app").classList.remove("hidden");render();connDefault();sync();
   setInterval(()=>{if(!document.hidden)sync(true);},15000);
   setInterval(tick,1000);
 }
-function setTitle(t){$("title").textContent=t;document.title=t;}
 function gate(){
   $("app").classList.add("hidden");$("fab").classList.add("hidden");$("lock").classList.remove("hidden");
   $("pw").value="";$("pw2").value="";$("lockMsg").textContent="";
@@ -304,21 +312,21 @@ function render(){
     :`<span class="ttl">${esc(s.topic||"(제목 없음)")}</span> <button class="sm sec" data-act="editTitle" data-sid="${s.sid}" title="제목 편집">✎</button>`;
   const memos=s=>s.memos.map(m=>`<div class="memo">· ${fmtS(m.at)} <span class="k">${esc(m.by)}</span> ${esc(m.text)}</div>`).join("");
   $("liveList").innerHTML=live.filter(vis).map(s=>`<div class="card">
-    <div class="row sp"><span class="pill live">진행 중</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
+    <div class="row sp"><span class="pill live">${esc(L("live"))}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(s.who)}${s.planned?" · 예정 "+esc(fmtP(s.planned)):""}</div>
     <div class="k">시작 ${fmt(s.start)}${s.startSrv?" (서버 "+fmtS(s.startSrv)+")":""} ${esc(diffTxt(s))}</div>
     <div class="timer" data-t="${s.start}">${dur(Date.now()-s.start)}</div>
     ${memos(s)}
-    <textarea data-draft="m:${s.sid}" placeholder="메모 (시각·입력자와 함께 기록)" style="margin-top:8px">${esc(drafts["m:"+s.sid]||"")}</textarea>
-    <div class="row" style="margin-top:8px"><button class="sec" data-act="memo" data-sid="${s.sid}">메모 저장</button><button class="bad" data-act="end" data-sid="${s.sid}">■ 상담 종료</button></div></div>`).join("")||'<div class="k" style="margin:0 2px">없음</div>';
+    <textarea data-draft="m:${s.sid}" placeholder="${esc(L("memoPh"))}" style="margin-top:8px">${esc(drafts["m:"+s.sid]||"")}</textarea>
+    <div class="row" style="margin-top:8px"><button class="sec" data-act="memo" data-sid="${s.sid}">${esc(L("memoBtn"))}</button><button class="bad" data-act="end" data-sid="${s.sid}">${esc(L("end"))}</button></div></div>`).join("")||'<div class="k" style="margin:0 2px">없음</div>';
   $("planList").innerHTML=plan.filter(vis).map(s=>`<div class="card">
     <div class="row sp"><span class="pill plan">예정 ${esc(fmtP(s.planned)||"(시각 미정)")}</span><span class="k">입력자 ${esc(s.planBy)}</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(s.who)}</div>
-    <div class="row" style="margin-top:8px"><button class="sm" data-act="startPlan" data-sid="${s.sid}">▶ 지금 시작</button><button class="sm sec" data-act="cancelPlan" data-sid="${s.sid}">예정 취소</button></div></div>`).join("")||'<div class="k" style="margin:0 2px">없음</div>';
+    <div class="row" style="margin-top:8px"><button class="sm" data-act="startPlan" data-sid="${s.sid}">${esc(L("startPlan"))}</button><button class="sm sec" data-act="cancelPlan" data-sid="${s.sid}">${esc(L("cancelPlan"))}</button></div></div>`).join("")||'<div class="k" style="margin:0 2px">없음</div>';
   $("doneList").innerHTML=all.filter(vis).map(s=>`<div class="card">
-    <div class="row sp"><span class="pill ${s.status==="done"?"done":""}">${s.status==="done"?"완료 "+dur(s.end-s.start):"예정 취소"}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
+    <div class="row sp"><span class="pill ${s.status==="done"?"done":""}">${s.status==="done"?L("done")+" "+dur(s.end-s.start):L("cancelPlan")}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(s.who)}</div>
     <div class="k">${s.planned?"예정 "+esc(fmtP(s.planned))+" · ":""}${s.start?"시작 "+fmt(s.start)+(s.startSrv?" (서버 "+fmtS(s.startSrv)+")":"")+" · 종료 "+fmt(s.end)+(s.endSrv?" (서버 "+fmtS(s.endSrv)+")":""):""}</div>
@@ -338,22 +346,26 @@ document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset
 const newSid=()=>"s"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 const times=()=>Array.from(document.querySelectorAll("#plannedList .pl")).map(i=>i.value).filter(Boolean);
 function formVals(){return{who:$("who").value.trim(),topic:$("topic").value.trim(),planned:times()[0]||""};}
-function clearForm(){$("who").value="";$("topic").value="";$("plannedList").innerHTML='<input type="datetime-local" class="pl" style="margin-bottom:6px">';$("newCard").classList.add("hidden");$("fab").classList.remove("hidden");}
-$("fab").onclick=()=>{$("newCard").classList.remove("hidden");$("fab").classList.add("hidden");$("newCard").scrollIntoView({behavior:"smooth",block:"center"});$("who").focus();};
-$("newClose").onclick=()=>{$("newCard").classList.add("hidden");$("fab").classList.remove("hidden");};
-$("addTime").onclick=()=>{const i=document.createElement("input");i.type="datetime-local";i.className="pl";i.style.marginBottom="6px";$("plannedList").appendChild(i);i.focus();};
+function clearForm(){$("who").value="";$("topic").value="";$("plannedList").innerHTML='<input type="datetime-local" class="pl" style="margin-bottom:6px">';$("newCard").classList.add("hidden");$("newTop").classList.remove("hidden");$("fab").classList.remove("hidden");}
+$("fab").onclick=$("newTop").onclick=()=>{$("newTop").classList.add("hidden");$("newCard").classList.remove("hidden");$("fab").classList.add("hidden");$("newCard").scrollIntoView({behavior:"smooth",block:"center"});$("who").focus();};
+$("newClose").onclick=()=>{$("newCard").classList.add("hidden");$("newTop").classList.remove("hidden");$("fab").classList.remove("hidden");};
+function chainTimes(){const a=Array.from(document.querySelectorAll("#plannedList .pl"));a.forEach((el,i)=>{if(!i)return;const p=a[i-1].value;el.disabled=!p;el.min=p||"";if(!p)el.value="";else if(el.value&&el.value<=p)el.value="";});}
+$("plannedList").addEventListener("input",chainTimes);$("plannedList").addEventListener("change",chainTimes);
+$("addTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .pl"),last=a[a.length-1];if(!last.value){alert("앞 시간을 먼저 입력하세요.");return;}const i=document.createElement("input");i.type="datetime-local";i.className="pl";i.style.marginBottom="6px";i.min=last.value;$("plannedList").appendChild(i);i.focus();};
+$("delTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .pl");if(a.length>1)a[a.length-1].remove();};
 $("by").addEventListener("change",()=>localStorage.setItem(BYKEY,$("by").value.trim()));
 $("planBtn").onclick=async()=>{
   const by=getBy();if(!by)return;const f=formVals();
-  if(!f.who){alert("상담 대상을 입력하세요.");return;}
+  if(!f.who){alert("대상을 입력하세요.");return;}
   const ts=times();if(!ts.length){alert("예정 시각을 입력하세요.");return;}
+  for(let i=1;i<ts.length;i++)if(ts[i]<=ts[i-1]){alert("뒤 시간은 앞 시간보다 늦어야 합니다.");return;}
   let ok=true;for(const p of ts){if(!await append({type:"plan",sid:newSid(),by,who:f.who,topic:f.topic,planned:p})){ok=false;break;}}
-  if(ok)clearForm();
+  if(ok){clearForm();render();}
 };
 $("startBtn").onclick=async()=>{
   const by=getBy();if(!by)return;const f=formVals();
-  if(!f.who){alert("상담 대상을 입력하세요.");return;}
-  if(await append({type:"start",sid:newSid(),by,who:f.who,topic:f.topic,planned:f.planned}))clearForm();
+  if(!f.who){alert("대상을 입력하세요.");return;}
+  if(await append({type:"start",sid:newSid(),by,who:f.who,topic:f.topic,planned:f.planned})){clearForm();render();}
 };
 const sess=sid=>sessions().find(s=>s.sid===sid);
 $("main").addEventListener("click",async ev=>{
@@ -370,7 +382,7 @@ $("main").addEventListener("click",async ev=>{
     const v=(drafts["m:"+sid]||"").trim();if(!v)return;
     if(await append({type:"memo",sid,by,text:v})){delete drafts["m:"+sid];render();}
   }else if(act==="end"){
-    if(confirm("상담을 종료할까요?"))append({type:"end",sid,by});
+    if(confirm("종료할까요?"))append({type:"end",sid,by});
   }else if(act==="startPlan"){
     const s=sess(sid);if(s)append({type:"start",sid,by,who:s.who,topic:s.topic,planned:s.planned});
   }else if(act==="cancelPlan"){
@@ -385,13 +397,15 @@ $("title").onclick=()=>{taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,150
 function download(name,blob){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}
 async function openAdmin(){
   const c=getCfg();if(c)$("cfgUrl").value=c.url;
-  $("ttlIn").value=$("title").textContent;
+  buildLabelEditor();
   $("main").classList.add("hidden");$("fab").classList.add("hidden");$("admin").classList.remove("hidden");
   const v=await verify();
-  $("anchor").value="[상담기록 무결성 요약]\n기준시각: "+fmt(Date.now())+"\n기록 수: "+v.n+" / 상담 건수: "+sessions().length+"\n최종 해시: "+v.head+"\n체인 검사: "+(v.bad.length?"이상 있음":"정상");
+  $("anchor").value="[기록 무결성 요약]\n기준시각: "+fmt(Date.now())+"\n기록 수: "+v.n+" / 항목 수: "+sessions().length+"\n최종 해시: "+v.head+"\n체인 검사: "+(v.bad.length?"이상 있음":"정상");
 }
 $("closeAdmin").onclick=()=>{$("admin").classList.add("hidden");$("main").classList.remove("hidden");$("fab").classList.remove("hidden");};
-$("ttlBtn").onclick=()=>{const t=$("ttlIn").value.trim();if(!t)return;localStorage.setItem(TTLKEY,t);setTitle(t);};
+function buildLabelEditor(){$("lbList").innerHTML=LSPEC.map(x=>`<label>${esc(x[1])}</label><input data-lk="${x[0]}" value="${esc(L(x[0]))}">`).join("");}
+$("lbSave").onclick=()=>{const o={};document.querySelectorAll("[data-lk]").forEach(i=>{const v=i.value.trim();if(v&&v!==DEFLB[i.dataset.lk])o[i.dataset.lk]=v;});localStorage.setItem("counsel_labels_v1",JSON.stringify(o));LB=Object.assign({},DEFLB,o);applyLabels();render();$("lbMsg").innerHTML='<span class="ok">저장했습니다.</span>';};
+$("lbReset").onclick=()=>{localStorage.removeItem("counsel_labels_v1");localStorage.removeItem("counsel_title_v1");LB=Object.assign({},DEFLB);applyLabels();buildLabelEditor();render();$("lbMsg").innerHTML='<span class="ok">기본값으로 되돌렸습니다.</span>';};
 $("cfgSave").onclick=async()=>{
   const url=$("cfgUrl").value.trim(),m=$("cfgMsg");
   if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){m.innerHTML='<span class="err">주소(…/exec)를 확인하세요.</span>';return;}
@@ -412,7 +426,7 @@ $("cfgSave").onclick=async()=>{
 $("cfgSync").onclick=async()=>{await sync();$("cfgMsg").innerHTML=getCfg()?'<span class="ok">동기화했습니다.</span>':'<span class="err">먼저 연결하세요.</span>';};
 $("verifyBtn").onclick=async()=>{const v=await verify();$("verifyMsg").innerHTML=v.bad.length?'<span class="err">이상 발견: '+v.bad.map(esc).join(", ")+'</span>':'<span class="ok">정상 — 기록 '+v.n+'건 모두 연결·내용 일치</span>';};
 $("anchorBtn").onclick=async()=>{try{await navigator.clipboard.writeText($("anchor").value);$("anchorMsg").innerHTML='<span class="ok">복사했습니다.</span>';}catch(e){$("anchorMsg").innerHTML='<span class="warn">자동 복사가 막혀 있습니다. 위 글을 직접 복사하세요.</span>';}};
-$("backupBtn").onclick=()=>{download("상담기록_백업_"+new Date().toLocaleDateString("sv-SE",{timeZone:TZ})+".json",new Blob([JSON.stringify(events)],{type:"application/json"}));$("anchorMsg").innerHTML='<span class="ok">백업 파일을 저장했습니다.</span>';};
+$("backupBtn").onclick=()=>{download(L("pdfFile")+"_백업_"+new Date().toLocaleDateString("sv-SE",{timeZone:TZ})+".json",new Blob([JSON.stringify(events)],{type:"application/json"}));$("anchorMsg").innerHTML='<span class="ok">백업 파일을 저장했습니다.</span>';};
 $("restoreFile").onchange=async ev=>{
   const f=ev.target.files[0];if(!f)return;const m=$("anchorMsg");
   try{
@@ -438,17 +452,17 @@ $("pdfBtn").onclick=async()=>{
     const f=$("from").value?new Date($("from").value+"T00:00:00+09:00").getTime():0;
     const t=$("to").value?new Date($("to").value+"T23:59:59+09:00").getTime():Infinity;
     const ss=sessions().filter(s=>s.start&&s.start>=f&&s.start<=t).sort((a,b)=>a.start-b.start);
-    if(!ss.length){msg.innerHTML='<span class="warn">해당 기간에 시작된 상담이 없습니다.</span>';return;}
+    if(!ss.length){msg.innerHTML='<span class="warn">해당 기간에 시작된 기록이 없습니다.</span>';return;}
     const v=await verify();
     if(document.fonts&&document.fonts.ready)await document.fonts.ready;
     const {jsPDF}=window.jspdf;const pdf=new jsPDF({unit:"mm",format:"a4"});const box=$("report");
     for(let i=0;i<ss.length;i++){
       const s=ss[i];
-      box.innerHTML=`<div class="page"><h2>상담 기록 확인서</h2>
+      box.innerHTML=`<div class="page"><h2>${esc(L("pdfTitle"))}</h2>
         <div class="meta">출력 시각 ${fmt(Date.now())} · ${i+1} / ${ss.length}</div>
         <table>
-          <tr><th>상담 제목</th><td>${esc(s.topic)||"-"}</td></tr>
-          <tr><th>상담 대상</th><td>${esc(s.who)}</td></tr>
+          <tr><th>제목</th><td>${esc(s.topic)||"-"}</td></tr>
+          <tr><th>대상</th><td>${esc(s.who)}</td></tr>
           <tr><th>입력자</th><td>시작 ${esc(s.startBy)||"-"}${s.end?" / 종료 "+esc(s.endBy):""}</td></tr>
           <tr><th>예정 시각</th><td>${s.planned?esc(fmtP(s.planned)):"-"}</td></tr>
           <tr><th>실제 시작 시각</th><td>${fmt(s.start)}${diffTxt(s)?" ("+esc(diffTxt(s))+")":""}</td></tr>
@@ -456,7 +470,7 @@ $("pdfBtn").onclick=async()=>{
           <tr><th>종료 시각</th><td>${s.end?fmt(s.end):"(종료 기록 없음)"}</td></tr>
           <tr><th>소요 시간</th><td>${s.end?dur(s.end-s.start):"-"}</td></tr>
         </table>
-        <div style="font-size:14px;font-weight:500;margin-bottom:6px">상담 중 메모</div>
+        <div style="font-size:14px;font-weight:500;margin-bottom:6px">메모</div>
         ${s.memos.length?s.memos.map(m=>`<div class="m">${fmtS(m.at)} (${esc(m.by)}) — ${esc(m.text)}</div>`).join(""):'<div class="m" style="color:#777">없음</div>'}
         <div class="foot">기록 번호 ${s.hashes.map(esc).join(" / ")}<br>체인 검사: ${v.bad.length?"이상 있음":"정상"} · 전체 최종 해시 ${v.head}<br>※ 서버 기록 시각은 Google 서버가 기록을 받은 시각이며, 각 기록은 이전 기록의 해시와 연결되어 사후 수정이 감지됩니다.</div></div>`;
       const c=await html2canvas(box.firstElementChild,{scale:2,backgroundColor:"#fff"});
@@ -464,7 +478,7 @@ $("pdfBtn").onclick=async()=>{
       pdf.addImage(c.toDataURL("image/jpeg",0.92),"JPEG",0,0,210,297);
     }
     box.innerHTML="";
-    download("상담기록_"+new Date().toLocaleDateString("sv-SE",{timeZone:TZ})+".pdf",pdf.output("blob"));
+    download(L("pdfFile")+"_"+new Date().toLocaleDateString("sv-SE",{timeZone:TZ})+".pdf",pdf.output("blob"));
     msg.innerHTML='<span class="ok">PDF를 저장했습니다. ('+ss.length+'건)</span>';
   }catch(e){msg.innerHTML='<span class="err">실패: '+esc(e&&(e.message||e))+'</span>';}
 };

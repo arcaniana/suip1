@@ -1,7 +1,7 @@
 {
-  "name": "상담 기록 보관함",
-  "short_name": "상담기록",
-  "description": "상담 시작·종료 시각을 기록하고 PDF로 보관하는 앱",
+  "name": "기록 보관함",
+  "short_name": "기록",
+  "description": "시작·종료 시각을 기록하고 PDF로 보관하는 앱",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
