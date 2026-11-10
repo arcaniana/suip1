@@ -93,6 +93,7 @@ button:disabled{opacity:.5}
     </div>
 
     <button id="newTop" style="width:100%;margin-bottom:10px;padding:12px" data-l="newTop">＋ 새 기록 / 시간 추가</button>
+    <button class="sec" id="pdfMenu" data-l="pdfMenu" style="width:100%;margin-bottom:10px;padding:10px">PDF 출력</button>
     <div class="card hidden" id="newCard">
       <div class="row sp"><b data-l="newTitle">새 기록</b><button class="sm sec" id="newClose">닫기</button></div>
       <div class="row g">
@@ -163,14 +164,6 @@ button:disabled{opacity:.5}
       <div id="viewMsg" class="msg"></div>
     </div>
     <div class="card">
-      <b>PDF 출력</b>
-      <div class="row g"><div><label>시작일</label><input type="date" id="from"></div><div><label>종료일</label><input type="date" id="to"></div></div>
-      <div class="k" style="margin-top:8px">PDF에 넣을 항목</div>
-      <div id="pdfOpts" style="margin-top:2px"></div>
-      <div class="row" style="margin-top:10px"><button id="pdfBtn">PDF 만들기</button></div>
-      <div id="pdfMsg" class="msg"></div>
-    </div>
-    <div class="card">
       <b>무결성 확인</b>
       <div class="row" style="margin-top:8px"><button id="verifyBtn">검사하기</button></div>
       <div id="verifyMsg" class="msg"></div>
@@ -192,6 +185,22 @@ button:disabled{opacity:.5}
   </div>
 </div>
 </div>
+<div id="pdfView" class="hidden"><div id="pdfBox" style="max-width:640px;margin:0 auto;padding:16px">
+  <div class="row sp" style="margin-bottom:10px"><h1 style="margin:0" data-l="pdfMenu">PDF 출력</h1><button class="sm sec" id="pdfClose">닫기</button></div>
+  <div class="card"><b>1. 기간 설정</b>
+    <div class="row g" style="margin-top:6px"><div><label>시작일</label><input type="date" id="from"></div><div><label>종료일</label><input type="date" id="to"></div></div>
+    <div class="k" style="margin-top:6px">비워 두면 전체 기간입니다.</div></div>
+  <div class="card"><b>2. 정보 가져오기</b>
+    <div class="row" style="margin-top:8px"><button id="pdfLoad">정보 가져오기</button></div>
+    <div id="pdfInfo" class="msg"></div></div>
+  <div class="card"><b>3. PDF에 넣을 항목</b><div id="pdfOpts" style="margin-top:4px"></div></div>
+  <div class="card"><b>4. 무결성 확인</b>
+    <div class="row" style="margin-top:8px"><button class="sec" id="pdfVerify">검사하기</button></div>
+    <div id="pdfVerifyMsg" class="msg"></div></div>
+  <div class="card"><b>5. PDF 만들기</b>
+    <div class="row" style="margin-top:8px"><button id="pdfBtn" disabled>PDF 만들기</button></div>
+    <div id="pdfMsg" class="msg"></div></div>
+</div></div>
 <button class="fab" id="fab" title="새 기록">＋</button>
 <div id="report"></div>
 
@@ -218,8 +227,9 @@ try{Object.assign(formCfg,JSON.parse(localStorage.getItem(FORMKEY)||"{}"));Objec
 formCfg.fields=formCfg.fields||[];formCfg.who=formCfg.who||[];formCfg.topic=formCfg.topic||[];menuCfg.hide=menuCfg.hide||{};menuCfg.secs=menuCfg.secs||[];
 const lines=t=>String(t||"").split(/\n/).map(x=>x.trim()).filter(Boolean);
 const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+let pdfKey=null,pdfLoaded=false,gateTarget="admin";
 let adminUntil=0,adminWas=false;const adminOn=()=>Date.now()<adminUntil;
-const LSPEC=[["title","화면 제목","기록 보관함"],["by","입력자 칸 이름","입력자 (내 이름)"],["newTop","새 항목 버튼","＋ 새 기록 / 시간 추가"],["newTitle","새 항목 창 제목","새 기록"],["who","대상 칸 이름","대상 (이니셜·번호 등)"],["topic","제목 칸 이름","제목"],["planned","예정 시각 칸 이름","예정 시각 (참고용 · 기록에는 저장되지 않음)"],["addTime","시간 추가 버튼","＋ 시간 추가"],["plan","예정 등록 버튼","📅 예정으로 등록"],["start","바로 시작 버튼","▶ 지금 바로 시작"],["live","진행 중 구역 이름","진행 중"],["planH","예정 구역 이름","예정"],["allH","전체 기록 구역 이름","전체 기록 (모든 입력자)"],["startPlan","예정 카드의 시작 버튼","▶ 지금 시작"],["end","종료 버튼","■ 종료"],["memoBtn","메모 저장 버튼","메모 저장"],["memoPh","메모 입력 안내","메모 (시각·입력자와 함께 기록)"],["cancelPlan","예정 취소 버튼","예정 취소"],["done","완료 표시","완료"],["pdfTitle","PDF 제목","기록 확인서"],["pdfFile","PDF·백업 파일 이름 앞부분","기록"]];
+const LSPEC=[["title","화면 제목","기록 보관함"],["by","입력자 칸 이름","입력자 (내 이름)"],["newTop","새 항목 버튼","＋ 새 기록 / 시간 추가"],["newTitle","새 항목 창 제목","새 기록"],["who","대상 칸 이름","대상 (이니셜·번호 등)"],["topic","제목 칸 이름","제목"],["planned","예정 시각 칸 이름","예정 시각 (참고용 · 기록에는 저장되지 않음)"],["addTime","시간 추가 버튼","＋ 시간 추가"],["plan","예정 등록 버튼","📅 예정으로 등록"],["start","바로 시작 버튼","▶ 지금 바로 시작"],["live","진행 중 구역 이름","진행 중"],["planH","예정 구역 이름","예정"],["allH","전체 기록 구역 이름","전체 기록 (모든 입력자)"],["startPlan","예정 카드의 시작 버튼","▶ 지금 시작"],["end","종료 버튼","■ 종료"],["memoBtn","메모 저장 버튼","메모 저장"],["memoPh","메모 입력 안내","메모 (시각·입력자와 함께 기록)"],["cancelPlan","예정 취소 버튼","예정 취소"],["done","완료 표시","완료"],["pdfMenu","PDF 출력 메뉴 이름","PDF 출력"],["pdfTitle","PDF 제목","기록 확인서"],["pdfFile","PDF·백업 파일 이름 앞부분","기록"]];
 const DEFLB={};LSPEC.forEach(x=>DEFLB[x[0]]=x[2]);
 let LB=Object.assign({},DEFLB);
 try{Object.assign(LB,JSON.parse(localStorage.getItem("counsel_labels_v1")||"{}"));const old=localStorage.getItem("counsel_title_v1");if(old&&!localStorage.getItem("counsel_labels_v1"))LB.title=old;}catch(e){}
@@ -259,9 +269,9 @@ async function flush(){
     catch(err){lastErr="전송 실패: "+err.message;break;}
   }
 }
-async function loadAll(){
-  if(!viewKey)return;
-  const j=await remote("list",{key:viewKey});remoteEv=j.events;
+async function loadAll(k){
+  k=k||viewKey;if(!k)return;
+  const j=await remote("list",{key:k});remoteEv=j.events;
 }
 async function sync(quiet){
   const sig0=allEv().length;
@@ -292,10 +302,11 @@ function boot(){
   setInterval(()=>{if(!document.hidden)sync(true);},15000);
   setInterval(tick,1000);
 }
-function gate(){
+function gate(t){
+  gateTarget=t||"admin";
   $("app").classList.add("hidden");$("fab").classList.add("hidden");$("lock").classList.remove("hidden");
   $("pw").value="";$("pw2").value="";$("lockMsg").textContent="";
-  if(getCfg()){$("lockHint").textContent="관리자 비밀번호를 입력하세요.";$("pw2").classList.add("hidden");$("pwBtn").dataset.mode="server";}
+  if(getCfg()){$("lockHint").textContent=gateTarget==="pdf"?"PDF 출력 비밀번호를 입력하세요.":"관리자 비밀번호를 입력하세요.";$("pw2").classList.add("hidden");$("pwBtn").dataset.mode="server";}
   else if(!authData){$("lockHint").textContent="관리 메뉴 비밀번호를 처음 정합니다. (4자 이상)";$("pw2").classList.remove("hidden");$("pwBtn").dataset.mode="set";}
   else{$("lockHint").textContent="관리 메뉴 비밀번호를 입력하세요.";$("pw2").classList.add("hidden");$("pwBtn").dataset.mode="check";}
   $("pw").focus();
@@ -305,6 +316,11 @@ $("pwBtn").onclick=async()=>{
   const mode=$("pwBtn").dataset.mode,pw=$("pw").value;$("lockMsg").textContent="";
   if(mode==="server"){
     $("lockMsg").textContent="확인 중…";
+    if(gateTarget==="pdf"){
+      try{await remote("authpdf",{key:pw});pdfKey=pw;$("lockMsg").textContent="";}
+      catch(e){$("lockMsg").textContent=e.message==="Failed to fetch"?"서버에 연결할 수 없습니다.":e.message;return;}
+      $("lock").classList.add("hidden");$("app").classList.remove("hidden");openPdf();return;
+    }
     try{await remote("auth",{key:pw});viewKey=pw;$("lockMsg").textContent="";}
     catch(e){$("lockMsg").textContent=e.message==="Failed to fetch"?"서버에 연결할 수 없습니다.":e.message;return;}
     adminUntil=Date.now()+10*60000;$("lock").classList.add("hidden");$("app").classList.remove("hidden");openAdmin();
@@ -317,6 +333,7 @@ $("pwBtn").onclick=async()=>{
     authData={salt,hash:await sha(salt+":"+pw)};
     try{save();}catch(e){$("lockMsg").textContent="저장 실패";return;}
   }else if(await sha(authData.salt+":"+pw)!==authData.hash){$("lockMsg").textContent="비밀번호가 맞지 않습니다.";return;}
+  if(gateTarget==="pdf"){$("lock").classList.add("hidden");$("app").classList.remove("hidden");openPdf();return;}
   adminUntil=Date.now()+10*60000;$("lock").classList.add("hidden");$("app").classList.remove("hidden");openAdmin();
 };
 $("pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("pwBtn").click();});
@@ -540,7 +557,7 @@ $("main").addEventListener("click",async ev=>{
 
 /* ---------- admin ---------- */
 let taps=0,tapT=null;
-$("title").onclick=()=>{taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,1500);if(taps>=5){taps=0;gate();}};
+$("title").onclick=()=>{taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,1500);if(taps>=5){taps=0;gate("admin");}};
 function download(name,blob){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}
 let fcDraft=null;
 function readFc(){
@@ -561,7 +578,7 @@ $("fcSave").onclick=async()=>{
   readFc();const m=$("fcMsg"),labs=fcDraft.fields.map(f=>f.label);
   if(labs.some(l=>!l)){m.innerHTML='<span class="err">입력칸 이름을 비울 수 없습니다.</span>';return;}
   if(new Set(labs).size!==labs.length||labs.some(l=>["대상","제목","입력자"].includes(l))){m.innerHTML='<span class="err">입력칸 이름이 겹치거나 예약어(대상·제목·입력자)입니다.</span>';return;}
-  formCfg=JSON.parse(JSON.stringify(fcDraft));lsSet(FORMKEY,formCfg);buildForm();buildPdfOpts();buildMenuEditor();
+  formCfg=JSON.parse(JSON.stringify(fcDraft));lsSet(FORMKEY,formCfg);buildForm();buildMenuEditor();
   if(getCfg()){
     if(!viewKey){m.innerHTML='<span class="warn">이 기기에는 저장했습니다. 다른 분들께 반영하려면 관리자로 들어온 상태(전체 보기)에서 저장하세요.</span>';return;}
     try{await remote("setcfg",{key:viewKey,cfg:formCfg});m.innerHTML='<span class="ok">저장했습니다. 다른 분들 화면에는 잠시 후(15초 이내) 반영됩니다.</span>';}
@@ -593,7 +610,7 @@ function buildPdfOpts(){
 }
 $("pdfOpts").addEventListener("change",e=>{const c=e.target.closest("[data-ps]");if(!c)return;pdfSel[c.dataset.ps]=c.checked;lsSet(PDFKEY,pdfSel);});
 async function openAdmin(){
-  buildFormEditor();buildMenuEditor();buildPdfOpts();
+  buildFormEditor();buildMenuEditor();
   const c=getCfg();if(c)$("cfgUrl").value=c.url;
   buildLabelEditor();
   $("main").classList.add("hidden");$("fab").classList.add("hidden");$("admin").classList.remove("hidden");
@@ -646,14 +663,44 @@ $("npwBtn").onclick=async()=>{
   try{authData={salt,hash:await sha(salt+":"+pw)};save();$("npw").value="";$("npwMsg").innerHTML='<span class="ok">변경했습니다.</span>';}catch(e){$("npwMsg").innerHTML='<span class="err">실패</span>';}
 };
 
+/* ---------- PDF 출력 메뉴 ---------- */
+function openPdf(){
+  pdfLoaded=false;$("pdfBtn").disabled=true;$("pdfInfo").textContent="";$("pdfVerifyMsg").textContent="";$("pdfMsg").textContent="";
+  buildPdfOpts();
+  $("main").classList.add("hidden");$("fab").classList.add("hidden");$("admin").classList.add("hidden");$("pdfView").classList.remove("hidden");
+}
+function closePdf(){
+  pdfKey=null;pdfLoaded=false;if(!viewKey)remoteEv=[];
+  $("pdfView").classList.add("hidden");$("main").classList.remove("hidden");$("fab").classList.remove("hidden");connDefault();render();
+}
+$("pdfClose").onclick=closePdf;
+$("pdfMenu").onclick=()=>{
+  if(adminOn()&&viewKey){pdfKey=viewKey;openPdf();return;}
+  gate("pdf");
+};
+const pdfRange=()=>{
+  const f=$("from").value?new Date($("from").value+"T00:00:00+09:00").getTime():0;
+  const t=$("to").value?new Date($("to").value+"T23:59:59+09:00").getTime():Infinity;
+  return sessions().filter(s=>s.start&&s.start>=f&&s.start<=t).sort((a,b)=>a.start-b.start);
+};
+["from","to"].forEach(id=>$(id).addEventListener("change",()=>{pdfLoaded=false;$("pdfBtn").disabled=true;$("pdfInfo").innerHTML='<span class="warn">기간이 바뀌었습니다. 정보 가져오기를 다시 눌러 주세요.</span>';}));
+$("pdfLoad").onclick=async()=>{
+  const m=$("pdfInfo");m.textContent="가져오는 중…";
+  try{
+    if(getCfg()){await flush();await loadAll(pdfKey);}
+    const r=pdfRange();pdfLoaded=true;$("pdfBtn").disabled=false;
+    m.innerHTML=r.length?'<span class="ok">해당 기간 '+r.length+'건을 가져왔습니다. ('+esc(fmt(r[0].start))+' ~ '+esc(fmt(r[r.length-1].start))+')</span>':'<span class="warn">해당 기간에 시작된 기록이 없습니다.</span>';
+  }catch(e){pdfLoaded=false;$("pdfBtn").disabled=true;m.innerHTML='<span class="err">실패: '+esc(e&&e.message||e)+'</span>';}
+};
+$("pdfVerify").onclick=async()=>{const v=await verify();$("pdfVerifyMsg").innerHTML=v.bad.length?'<span class="err">이상 발견: '+v.bad.map(esc).join(", ")+'</span>':'<span class="ok">정상 — 내부 기록 '+v.n+'줄 모두 연결·내용 일치'+(v.red?' (삭제된 '+v.red+'줄은 내용 없이 연결만 확인)':'')+'</span>';};
+
 /* ---------- PDF ---------- */
 $("pdfBtn").onclick=async()=>{
   const msg=$("pdfMsg");msg.textContent="만드는 중…";
   try{
     if(!window.jspdf||!window.html2canvas){msg.innerHTML='<span class="err">PDF 도구를 불러오지 못했습니다. 인터넷 연결을 확인하세요.</span>';return;}
-    const f=$("from").value?new Date($("from").value+"T00:00:00+09:00").getTime():0;
-    const t=$("to").value?new Date($("to").value+"T23:59:59+09:00").getTime():Infinity;
-    const ss=sessions().filter(s=>s.start&&s.start>=f&&s.start<=t).sort((a,b)=>a.start-b.start);
+    if(!pdfLoaded){msg.innerHTML='<span class="warn">먼저 정보 가져오기를 눌러 주세요.</span>';return;}
+    const ss=pdfRange();
     if(!ss.length){msg.innerHTML='<span class="warn">해당 기간에 시작된 기록이 없습니다.</span>';return;}
     const v=await verify();
     if(document.fonts&&document.fonts.ready)await document.fonts.ready;
