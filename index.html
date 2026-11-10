@@ -550,24 +550,26 @@ function mkPl(nm){
     return l===null||(w.strict?t>l:t>=l);
   };
   const H24=()=>(Number(st.h)%12)+(st.a==="PM"?12:0);
+  // 오전: 0시~11시, 오후: 12시, 1시~11시
+  const hrs=()=>(st.a==="PM"?[12,1,2,3,4,5,6,7,8,9,10,11]:[0,1,2,3,4,5,6,7,8,9,10,11]).map(x=>[String(x),x+"시"]);
   const chips=(arr,cur,ok)=>arr.map(x=>`<button type="button" class="chip${String(x[0])===cur?" on":""}" data-v="${x[0]}"${ok&&!ok(x[0])?" disabled":""}>${x[1]}</button>`).join("");
   function show(n){
     step=n;pan.classList.remove("hidden");
     pan.classList.toggle("rt",w.getBoundingClientRect().left+310>window.innerWidth);
     if(n==="a")pan.innerHTML='<div class="k">오전 / 오후</div><div class="chips">'+chips([["AM","오전"],["PM","오후"]],st.a,v=>okT(v==="AM"?11*60+55:23*60+55))+'</div>';
-    else if(n==="h")pan.innerHTML='<div class="k">시</div><div class="chips">'+chips([...Array(12)].map((_,i)=>[String(i+1),(i+1)+"시"]),st.h,v=>okT(((Number(v)%12)+(st.a==="PM"?12:0))*60+55))+'</div>';
+    else if(n==="h")pan.innerHTML='<div class="k">시</div><div class="chips">'+chips(hrs(),st.h,v=>okT(((Number(v)%12)+(st.a==="PM"?12:0))*60+55))+'</div>';
     else pan.innerHTML='<div class="k">분 (1분 단위)</div><div class="chips minute-grid">'+chips([...Array(60)].map((_,i)=>String(i).padStart(2,"0")).map(x=>[x,x+"분"]),st.m,v=>okT(H24()*60+Number(v)))+'</div>';
   }
   const hide=()=>{pan.classList.add("hidden");step="";};
   pan.addEventListener("click",e=>{const c=e.target.closest("[data-v]");if(!c)return;const v=c.dataset.v;
-    if(step==="a"){st.a=v;show("h");}else if(step==="h"){st.h=v;show("m");}else{st.m=v;hide();lab();w.dispatchEvent(new Event("change",{bubbles:true}));}});
+    if(step==="a"){if(st.a!==v){st.a=v;st.h="";}show("h");}else if(step==="h"){st.h=v;show("m");}else{st.m=v;hide();lab();w.dispatchEvent(new Event("change",{bubbles:true}));}});
   q("d").addEventListener("change",()=>{dl();hide();try{q("d").blur();}catch(e){}});
   // 날짜 선택기에서도 오늘 이전 날짜를 막는다.
   q("d").min=new Date().toLocaleDateString("sv-SE",{timeZone:TZ});
   q("d").addEventListener("click",()=>{try{if(!q("d").disabled&&q("d").showPicker)q("d").showPicker();}catch(e){}});
   q("t").addEventListener("click",()=>{if(w.onOpen)w.onOpen();if(step)hide();else show("a");});
   Object.defineProperty(w,"value",{get(){const d=q("d").value;if(!d||!st.a||!st.h||st.m==="")return"";let H=Number(st.h)%12;if(st.a==="PM")H+=12;return d+"T"+String(H).padStart(2,"0")+":"+st.m;},
-    set(v){hide();if(!v){q("d").value="";st.a=st.h=st.m="";lab();dl();return;}const[d,t]=v.split("T"),H=Number(t.slice(0,2));q("d").value=d;st.a=H>=12?"PM":"AM";st.h=String(H%12||12);st.m=t.slice(3,5);lab();dl();}});
+    set(v){hide();if(!v){q("d").value="";st.a=st.h=st.m="";lab();dl();return;}const[d,t]=v.split("T"),H=Number(t.slice(0,2));q("d").value=d;st.a=H>=12?"PM":"AM";st.h=String(H>=12?(H===12?12:H-12):H);st.m=t.slice(3,5);lab();dl();}});
   Object.defineProperty(w,"disabled",{get(){return q("d").disabled;},set(v){q("d").disabled=!!v;q("t").disabled=!!v;w.querySelector(".dbtn").disabled=!!v;if(v)hide();}});
   Object.defineProperty(w,"min",{get(){return mn;},set(v){mn=v||"";q("d").min=mn?mn.slice(0,10):"";}});
   w.clearTime=()=>{st.a=st.h=st.m="";lab();hide();};
