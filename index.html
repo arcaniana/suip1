@@ -541,7 +541,7 @@ function mkPl(nm){
     pan.classList.toggle("rt",w.getBoundingClientRect().left+310>window.innerWidth);
     if(n==="a")pan.innerHTML='<div class="k">오전 / 오후</div><div class="chips">'+chips([["AM","오전"],["PM","오후"]],st.a,v=>okT(v==="AM"?11*60+55:23*60+55))+'</div>';
     else if(n==="h")pan.innerHTML='<div class="k">시</div><div class="chips">'+chips([...Array(12)].map((_,i)=>[String(i+1),(i+1)+"시"]),st.h,v=>okT(((Number(v)%12)+(st.a==="PM"?12:0))*60+55))+'</div>';
-    else pan.innerHTML='<div class="k">분 (5분 단위)</div><div class="chips">'+chips([...Array(12)].map((_,i)=>String(i*5).padStart(2,"0")).map(x=>[x,x+"분"]),st.m,v=>okT(H24()*60+Number(v)))+'</div>';
+    else pan.innerHTML='<div class="k">분 (1분 단위)</div><div class="chips">'+chips([...Array(60)].map((_,i)=>String(i).padStart(2,"0")).map(x=>[x,x+"분"]),st.m,v=>okT(H24()*60+Number(v)))+'</div>';
   }
   const hide=()=>{pan.classList.add("hidden");step="";};
   pan.addEventListener("click",e=>{const c=e.target.closest("[data-v]");if(!c)return;const v=c.dataset.v;
@@ -565,7 +565,7 @@ function mkSlot(){
   const sw=mkPl("시작 날짜"),ew=mkPl("종료 날짜");
   const g1=document.createElement("div"),g2=document.createElement("div"),g3=document.createElement("div");g1.className=g3.className="grp";g2.className="grp gd";
   g1.innerHTML="<b>시작</b>";g1.appendChild(sw);g3.innerHTML="<b>종료</b>";g3.appendChild(ew);
-  g2.innerHTML='<b>＋</b><select class="dh"><option value="">시간</option>'+[...Array(13)].map((_,i)=>`<option value="${i}">${i}시간</option>`).join("")+'</select><select class="dm"><option value="">분</option>'+[...Array(12)].map((_,i)=>i*5).map(x=>`<option value="${x}">${x}분</option>`).join("")+'</select>';
+  g2.innerHTML='<b>＋</b><select class="dh"><option value="">시간</option>'+[...Array(13)].map((_,i)=>`<option value="${i}">${i}시간</option>`).join("")+'</select><select class="dm"><option value="">분</option>'+[...Array(60)].map((_,i)=>`<option value="${i}">${i}분</option>`).join("")+'</select>';
   const dh=g2.querySelector(".dh"),dm=g2.querySelector(".dm");
   const hint=document.createElement("div");hint.className="k hint hidden";hint.style.cssText="flex:1 1 100%;color:var(--bad)";
   let auto=false,applying=false;
@@ -578,7 +578,7 @@ function mkSlot(){
   const syncDur=()=>{
     if(!sw.value||!ew.value){return;}
     const df=minsOf(ew.value)-minsOf(sw.value);
-    if(df>0&&df<=12*60+55&&df%5===0){dh.value=String(Math.floor(df/60));dm.value=String(df%60);}else{dh.value="";dm.value="";}
+    if(df>0&&df<=12*60+59){dh.value=String(Math.floor(df/60));dm.value=String(df%60);}else{dh.value="";dm.value="";}
   };
   dh.onchange=dm.onchange=apply;
   ew.addEventListener("change",()=>{if(!applying){auto=false;syncDur();}});
