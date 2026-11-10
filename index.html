@@ -73,6 +73,13 @@ input,select,textarea{font-size:16px}
 .pan{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:30;background:#f3f5fa;border:1px solid var(--line);box-shadow:0 6px 18px rgba(0,0,0,.18);border-radius:10px;padding:8px 10px}.pan.rt{left:auto;right:0}.pan .k{margin:0 0 4px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}.chip:disabled{opacity:.35;cursor:not-allowed}.chip{flex:0 0 auto;min-width:48px;padding:8px 6px;background:#fff;color:var(--ink);border:1px solid var(--line)}.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
 .pvw{overflow-x:auto;border:1px solid var(--line);border-radius:8px;max-height:360px;overflow-y:auto}.pv{border-collapse:collapse;font-size:12px;width:100%;min-width:420px}.pv th,.pv td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left;vertical-align:top}.pv th{background:#f0f2f6;position:sticky;top:0}.pv tr.sub td{font-size:11px;color:#555;border-top:none}.pv td.hs{font-size:9px;color:#888;word-break:break-all}
+.mk input{font:inherit}.mk-h1{font-size:20px;font-weight:700;border:1px dashed #b9c3da;background:#fff;margin-bottom:8px}
+.mk-lbl{font-size:13px;padding:5px 8px;border:1px dashed #b9c3da;background:#fff;margin:6px 0 3px}.mk-lbl.bad,.mk input.bad{border-color:var(--bad);background:#fff3f1}
+.mk-btn{display:block;width:100%;text-align:center;border:0;border-radius:9px;padding:10px;margin-bottom:8px;font-weight:500}.mk-btn.blue{background:var(--accent);color:#fff}.mk-btn.gray{background:#e9ecf3;color:var(--ink)}
+.mkbtns{display:flex;flex-wrap:wrap;gap:6px}.mkbtns>input{flex:1 1 120px;width:auto}
+.mkcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:10px}
+.mkgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mkf{background:#f6f8fc;border:1px solid #dfe5f1;border-radius:9px;padding:6px 8px}.mkf.off{opacity:.7}.mkf input{margin-top:0}.mkf textarea{min-height:56px;font-size:14px}.mkf details{margin:6px 0;font-size:12px;color:var(--mute)}
+.mkbox{height:30px;border:1px solid var(--line);border-radius:8px;background:#fff;margin-bottom:4px}.mkslot{border:1px dashed #b9c3da;border-radius:8px;padding:8px;font-size:12px;color:var(--mute);margin:4px 0 8px}.mkcap{font-size:12px;color:var(--mute);margin:12px 0 2px}
 .page .m{font-size:13px;margin:0 0 6px}
 .page.lst table{font-size:12px;margin-bottom:0}
 .page.lst th{width:auto;text-align:center;font-size:12px;padding:6px 6px}
@@ -109,8 +116,8 @@ input,select,textarea{font-size:16px}
     <div class="card hidden" id="newCard">
       <div class="row sp"><b data-l="newTitle">새 기록</b><button class="sm sec" id="newClose">닫기</button></div>
       <div class="row g">
-        <div><label data-l="who">대상 (이니셜·번호 등)</label><input id="who"></div>
-        <div><label data-l="topic">제목</label><input id="topic"></div>
+        <div id="wWho"><label data-l="who">대상 (이니셜·번호 등)</label><input id="who"></div>
+        <div id="wTopic"><label data-l="topic">제목</label><input id="topic"></div>
       </div>
       <datalist id="dl-who"></datalist><datalist id="dl-topic"></datalist>
       <div id="extraFields"></div>
@@ -134,19 +141,11 @@ input,select,textarea{font-size:16px}
 
   <div id="admin" class="hidden">
     <div class="card">
-      <b>이름 편집</b>
-      <div class="k" style="margin:4px 0 6px">화면에 보이는 이름을 마음대로 바꿀 수 있습니다. 이 기기에만 저장됩니다.</div>
-      <div id="lbList"></div>
-      <div class="row" style="margin-top:10px"><button id="lbSave">이름 저장</button><button class="sec" id="lbReset">기본값으로</button></div>
+      <b>화면 편집</b>
+      <div class="k" style="margin:4px 0 8px">메인 화면과 같은 모양입니다. 글자를 바로 고치면 자동 저장됩니다. (이름은 이 기기에만, 입력칸 구성은 시트에 연결되고 관리자로 들어와 있으면 모든 기기에 반영됩니다.)</div>
+      <div id="mock"></div>
+      <div class="row" style="margin-top:12px"><button class="sec sm" id="lbReset">이름 기본값으로</button></div>
       <div id="lbMsg" class="msg"></div>
-      <div class="k" style="margin-top:6px">각 항목의 제목은 목록의 ✎ 버튼으로 고칩니다. 고친 내역은 기록으로 남습니다.</div>
-    </div>
-    <div class="card">
-      <b>입력 항목 편집</b>
-      <div class="k" style="margin:4px 0 6px">기록 입력창의 칸을 더하거나 뺍니다. "선택지"는 한 줄에 하나씩 적으면 입력할 때 목록에서 고를 수 있고, 직접 적어도 됩니다. 시트에 연결돼 있으면 다른 분들 입력창에도 반영됩니다.</div>
-      <div id="fcEditor"></div>
-      <div class="row" style="margin-top:10px"><button class="sm sec" id="fcAdd">＋ 입력칸 추가</button><button id="fcSave">저장</button></div>
-      <div id="fcMsg" class="msg"></div>
     </div>
     <div class="card">
       <b>화면 구성</b>
@@ -239,7 +238,7 @@ const savePlans=()=>{try{localStorage.setItem("counsel_plans_v1",JSON.stringify(
 const FORMKEY="counsel_form_v1",MENUKEY="counsel_menu_v1",PDFKEY="counsel_pdfsel_v1";
 let formCfg={who:[],topic:[],fields:[]},menuCfg={hide:{},secs:[]},pdfSel={};
 try{Object.assign(formCfg,JSON.parse(localStorage.getItem(FORMKEY)||"{}"));Object.assign(menuCfg,JSON.parse(localStorage.getItem(MENUKEY)||"{}"));pdfSel=JSON.parse(localStorage.getItem(PDFKEY)||"{}");}catch(e){}
-formCfg.fields=formCfg.fields||[];formCfg.who=formCfg.who||[];formCfg.topic=formCfg.topic||[];menuCfg.hide=menuCfg.hide||{};menuCfg.secs=menuCfg.secs||[];
+formCfg.hide=formCfg.hide||{};formCfg.fields=formCfg.fields||[];formCfg.who=formCfg.who||[];formCfg.topic=formCfg.topic||[];menuCfg.hide=menuCfg.hide||{};menuCfg.secs=menuCfg.secs||[];
 const lines=t=>String(t||"").split(/\n/).map(x=>x.trim()).filter(Boolean);
 const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
 const tgOpen={plan:false,all:false};
@@ -294,7 +293,7 @@ async function sync(quiet){
   const sig0=allEv().length;
   try{await flush();}catch(e){}
   if(getCfg()){try{const j=await remote("deleted",{dev:DEV});(j.sids||[]).forEach(redactLocal);}catch(e){}}
-  if(getCfg()){try{const j=await remote("getcfg");if(j.cfg){const n=Object.assign({who:[],topic:[],fields:[]},j.cfg);if(JSON.stringify(n)!==JSON.stringify(formCfg)){formCfg=n;lsSet(FORMKEY,formCfg);buildForm(true);}}}catch(e){}}
+  if(getCfg()){try{const j=await remote("getcfg");if(j.cfg){const n=Object.assign({who:[],topic:[],fields:[],hide:{}},j.cfg);n.hide=n.hide||{};if(JSON.stringify(n)!==JSON.stringify(formCfg)){formCfg=n;lsSet(FORMKEY,formCfg);buildForm(true);}}}catch(e){}}
   if(viewKey){try{await loadAll();}catch(e){lastErr="불러오기 실패: "+e.message;}}
   connDefault();
   if(allEv().length!==sig0||!quiet)softRender();
@@ -417,6 +416,7 @@ function diffTxt(s){return "";
 const extraTxt=o=>Object.keys(o||{}).map(k=>k+": "+o[k]).join(" · ");
 function buildForm(keep){
   const old={};if(keep)document.querySelectorAll("[data-xf]").forEach(el=>{old[formCfg.fields[el.dataset.xf]&&formCfg.fields[el.dataset.xf].label]=el.value;});
+  $("wWho").classList.toggle("hidden",!!formCfg.hide.who);$("wTopic").classList.toggle("hidden",!!formCfg.hide.topic);
   $("who").setAttribute("list","dl-who");$("topic").setAttribute("list","dl-topic");
   $("dl-who").innerHTML=formCfg.who.map(o=>`<option value="${esc(o)}">`).join("");
   $("dl-topic").innerHTML=formCfg.topic.map(o=>`<option value="${esc(o)}">`).join("");
@@ -445,7 +445,7 @@ function render(){
   const vis=s=>!filterBy||s.by.has(filterBy);
   const titleHtml=s=>editing===s.sid
     ?`<div class="row"><input data-draft="t:${s.sid}" value="${esc(drafts["t:"+s.sid]!==undefined?drafts["t:"+s.sid]:s.topic)}" style="flex:1"><button class="sm" data-act="saveTitle" data-sid="${s.sid}">저장</button><button class="sm sec" data-act="cancelEdit">취소</button></div>`
-    :`<span class="ttl">${esc(s.topic||"(제목 없음)")}</span> <button class="sm sec" data-act="editTitle" data-sid="${s.sid}" title="제목 편집">✎</button>`;
+    :`<span class="ttl">${esc(s.topic||(formCfg.hide.topic?"기록":"(제목 없음)"))}</span> <button class="sm sec" data-act="editTitle" data-sid="${s.sid}" title="제목 편집">✎</button>`;
   const memos=s=>s.memos.map(m=>`<div class="memo">· ${fmtS(m.at)} <span class="k">${esc(m.by)}</span> ${esc(m.text)}</div>`).join("");
   $("liveList").innerHTML=live.filter(vis).map(s=>`<div class="card">
     <div class="row sp"><span class="pill live">${esc(L("live"))}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
@@ -468,7 +468,7 @@ function render(){
     <div class="k">${s.start?"시작 "+fmt(s.start)+(s.startSrv?" (서버 "+fmtHM(s.startSrv)+")":"")+" · 종료 "+fmt(s.end)+(s.endSrv?" (서버 "+fmtHM(s.endSrv)+")":""):""}</div>
     ${memos(s)}${adminOn()?`<div class="row" style="margin-top:8px;justify-content:flex-end"><button class="sm bad" data-act="del" data-sid="${s.sid}">삭제</button></div>`:""}</div>`).join("")||'<div class="k" style="margin:0 2px">아직 기록이 없습니다.</div>';
   const mini=s=>`<div class="card"><div class="row sp"><span class="pill ${s.status==="live"?"live":"done"}">${s.status==="live"?esc(L("live")):esc(L("done"))+" "+dur(s.end-s.start)}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
-    <div style="margin-top:4px"><span class="ttl">${esc(s.topic||"(제목 없음)")}</span></div>
+    <div style="margin-top:4px"><span class="ttl">${esc(s.topic||(formCfg.hide.topic?"기록":"(제목 없음)"))}</span></div>
     <div class="k">${esc(s.who)}${extraTxt(s.extra)?" · "+esc(extraTxt(s.extra)):""}</div>
     <div class="k">시작 ${fmt(s.start)}${s.end?" · 종료 "+fmt(s.end):""}</div>${memos(s)}${adminOn()?`<div class="row" style="margin-top:8px;justify-content:flex-end"><button class="sm bad" data-act="del" data-sid="${s.sid}">삭제</button></div>`:""}</div>`;
   $("customSecs").innerHTML=menuCfg.secs.map(sec=>{
@@ -572,7 +572,7 @@ $("delTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .slot"
 $("by").addEventListener("change",()=>localStorage.setItem(BYKEY,$("by").value.trim()));
 $("planBtn").onclick=async()=>{
   const by=getBy();if(!by)return;const f=formVals();
-  if(!f.who){notify("대상을 입력하세요.");return;}
+  if(!f.who&&!formCfg.hide.who){notify("대상을 입력하세요.");return;}
   const ts=slots();if(!ts.length||ts.some(x=>!x.s||!x.e)){notify("예정의 시작과 종료를 모두 입력하세요.");return;}
   for(let i=0;i<ts.length;i++)if(ts[i].e<=ts[i].s||(i&&ts[i].s<ts[i-1].e)){notify("시작·종료 순서를 확인하세요.");return;}
   const xo=extrasObj();ts.forEach(p=>plans.push({id:newSid(),by,who:f.who,topic:f.topic,planned:p.s,plannedEnd:p.e,x:xo}));savePlans();
@@ -580,7 +580,7 @@ $("planBtn").onclick=async()=>{
 };
 $("startBtn").onclick=async()=>{
   const by=getBy();if(!by)return;const f=formVals();
-  if(!f.who){notify("대상을 입력하세요.");return;}
+  if(!f.who&&!formCfg.hide.who){notify("대상을 입력하세요.");return;}
   if(await append({type:"start",sid:newSid(),by,who:f.who,topic:f.topic,planned:xJson(extrasObj())})){clearForm();render();}
 };
 const sess=sid=>sessions().find(s=>s.sid===sid);
@@ -630,32 +630,71 @@ $("main").addEventListener("click",async ev=>{
 let taps=0,tapT=null;
 $("title").onclick=()=>{taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,1500);if(taps>=5){taps=0;gate("admin");}};
 function download(name,blob){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}
-let fcDraft=null;
-function readFc(){
-  if(!fcDraft)return;
-  const w=document.querySelector('[data-fk="who"]'),t=document.querySelector('[data-fk="topic"]');
-  if(w)fcDraft.who=lines(w.value);if(t)fcDraft.topic=lines(t.value);
-  fcDraft.fields.forEach((f,i)=>{const l=document.querySelector('[data-fl="'+i+'"]'),o=document.querySelector('[data-fo="'+i+'"]');if(l)f.label=l.value.trim();if(o)f.opts=lines(o.value);});
+let mockT=null;
+function saveFormCfg(){
+  lsSet(FORMKEY,formCfg);buildForm();buildPdfOpts();buildMenuEditor();render();
+  clearTimeout(mockT);
+  mockT=setTimeout(async()=>{
+    const m=$("lbMsg");
+    if(getCfg()){
+      if(!viewKey){m.innerHTML='<span class="warn">이 기기에는 저장했습니다. 다른 분들께 반영하려면 관리자(전체 보기)로 들어온 상태에서 고쳐 주세요.</span>';return;}
+      try{await remote("setcfg",{key:viewKey,cfg:formCfg});m.innerHTML='<span class="ok">자동 저장됨 · 다른 기기에는 15초 안에 반영됩니다.</span>';}
+      catch(e){m.innerHTML='<span class="err">서버 저장 실패: '+esc(e.message)+'</span>';}
+    }else m.innerHTML='<span class="ok">자동 저장됨</span>';
+  },700);
 }
-function drawFc(){
-  $("fcEditor").innerHTML=`<label>대상 칸 선택지 (한 줄에 하나)</label><textarea data-fk="who" style="min-height:50px">${esc(fcDraft.who.join("\n"))}</textarea>
-  <label>제목 칸 선택지 (한 줄에 하나)</label><textarea data-fk="topic" style="min-height:50px">${esc(fcDraft.topic.join("\n"))}</textarea>`+
-  fcDraft.fields.map((f,i)=>`<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:4px"><div class="row sp"><label style="margin:8px 0 3px">추가 입력칸 ${i+1} 이름</label><button class="sm bad" data-fdel="${i}">삭제</button></div><input data-fl="${i}" value="${esc(f.label)}"><label>선택지 (한 줄에 하나, 비워도 됨)</label><textarea data-fo="${i}" style="min-height:50px">${esc((f.opts||[]).join("\n"))}</textarea></div>`).join("");
+function saveLabels(){
+  const o={};document.querySelectorAll("#mock [data-lk]").forEach(i=>{const v=i.value.trim();if(v&&v!==DEFLB[i.dataset.lk])o[i.dataset.lk]=v;});
+  localStorage.setItem("counsel_labels_v1",JSON.stringify(o));LB=Object.assign({},DEFLB,o);applyLabels();buildPdfOpts();render();
+  $("lbMsg").innerHTML='<span class="ok">자동 저장됨</span>';
 }
-function buildFormEditor(){fcDraft=JSON.parse(JSON.stringify(formCfg));drawFc();}
-$("fcEditor").addEventListener("click",e=>{const b=e.target.closest("[data-fdel]");if(!b)return;readFc();fcDraft.fields.splice(Number(b.dataset.fdel),1);drawFc();});
-$("fcAdd").onclick=()=>{readFc();fcDraft.fields.push({label:"새 항목",opts:[]});drawFc();};
-$("fcSave").onclick=async()=>{
-  readFc();const m=$("fcMsg"),labs=fcDraft.fields.map(f=>f.label);
-  if(labs.some(l=>!l)){m.innerHTML='<span class="err">입력칸 이름을 비울 수 없습니다.</span>';return;}
-  if(new Set(labs).size!==labs.length||labs.some(l=>["대상","제목","입력자"].includes(l))){m.innerHTML='<span class="err">입력칸 이름이 겹치거나 예약어(대상·제목·입력자)입니다.</span>';return;}
-  formCfg=JSON.parse(JSON.stringify(fcDraft));lsSet(FORMKEY,formCfg);buildForm();buildMenuEditor();
-  if(getCfg()){
-    if(!viewKey){m.innerHTML='<span class="warn">이 기기에는 저장했습니다. 다른 분들께 반영하려면 관리자로 들어온 상태(전체 보기)에서 저장하세요.</span>';return;}
-    try{await remote("setcfg",{key:viewKey,cfg:formCfg});m.innerHTML='<span class="ok">저장했습니다. 다른 분들 화면에는 잠시 후(15초 이내) 반영됩니다.</span>';}
-    catch(e){m.innerHTML='<span class="err">서버 저장 실패: '+esc(e.message)+'</span>';}
-  }else m.innerHTML='<span class="ok">저장했습니다.</span>';
-};
+function buildMock(){
+  const li=(k,cls)=>`<input class="${cls}" data-lk="${k}" value="${esc(L(k))}">`;
+  const fld=(key,name)=>formCfg.hide[key]
+    ?`<div class="mkf off"><div class="k">${esc(L(key))} — 숨김</div><button class="sm sec" data-show="${key}">다시 표시</button></div>`
+    :`<div class="mkf">${li(key,"mk-lbl")}<div class="mkbox"></div><details><summary>선택지</summary><textarea data-fk="${key}" placeholder="한 줄에 하나씩">${esc((formCfg[key]||[]).join("\n"))}</textarea></details><button class="sm bad" data-hide="${key}">칸 없애기</button></div>`;
+  const extra=formCfg.fields.map((f,i)=>`<div class="mkf"><input class="mk-lbl" data-fl="${i}" value="${esc(f.label)}"><div class="mkbox"></div><details><summary>선택지</summary><textarea data-fo="${i}" placeholder="한 줄에 하나씩">${esc((f.opts||[]).join("\n"))}</textarea></details><button class="sm bad" data-fdel="${i}">칸 없애기</button></div>`).join("");
+  $("mock").innerHTML=`<div class="mk">
+    ${li("title","mk-h1")}
+    <div class="mkcard">${li("by","mk-lbl")}<div class="mkbox"></div></div>
+    ${li("newTop","mk-btn blue")}
+    ${li("pdfMenu","mk-btn gray")}
+    <div class="mkcard"><div class="row sp">${li("newTitle","mk-lbl")}</div>
+      <div class="mkgrid">${fld("who")}${fld("topic")}${extra}</div>
+      <button class="sm sec" id="mkAdd">＋ 입력칸 추가</button>
+      ${li("planned","mk-lbl")}
+      <div class="mkslot">예정 시각 입력 (시작 / 종료 세트)</div>
+      <div class="mkbtns">${li("addTime","mk-btn gray")}${li("plan","mk-btn gray")}${li("start","mk-btn blue")}</div>
+    </div>
+    <div class="mkcap">구역 이름</div>
+    <div class="mkbtns">${li("live","mk-lbl")}${li("planH","mk-lbl")}${li("allH","mk-lbl")}</div>
+    <div class="mkcap">기록 카드의 글자</div>
+    <div class="mkbtns">${li("done","mk-lbl")}${li("startPlan","mk-lbl")}${li("end","mk-lbl")}${li("cancelPlan","mk-lbl")}${li("memoBtn","mk-lbl")}${li("memoPh","mk-lbl")}</div>
+    <div class="mkcap">PDF</div>
+    <div class="mkbtns">${li("pdfTitle","mk-lbl")}${li("pdfFile","mk-lbl")}</div>
+  </div>`;
+}
+$("mock").addEventListener("input",e=>{
+  const t=e.target;
+  if(t.dataset.lk!==undefined){saveLabels();return;}
+  if(t.dataset.fk){formCfg[t.dataset.fk]=lines(t.value);saveFormCfg();return;}
+  if(t.dataset.fo!==undefined){formCfg.fields[Number(t.dataset.fo)].opts=lines(t.value);saveFormCfg();return;}
+  if(t.dataset.fl!==undefined){
+    const i=Number(t.dataset.fl),v=t.value.trim(),others=formCfg.fields.map((f,j)=>j===i?null:f.label);
+    if(!v||others.includes(v)||["대상","제목","입력자"].includes(v)){t.classList.add("bad");return;}
+    t.classList.remove("bad");formCfg.fields[i].label=v;saveFormCfg();
+  }
+});
+$("mock").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.id==="mkAdd"){let n=1,lab;do{lab="새 항목"+(n>1?n:"");n++;}while(formCfg.fields.some(f=>f.label===lab));formCfg.fields.push({label:lab,opts:[]});saveFormCfg();buildMock();return;}
+  if(b.dataset.fdel!==undefined){formCfg.fields.splice(Number(b.dataset.fdel),1);saveFormCfg();buildMock();return;}
+  if(b.dataset.hide){
+    if(b.dataset.arm!=="1"){b.dataset.arm="1";b.textContent="한 번 더 누르면 없어집니다";setTimeout(()=>{if(b.isConnected){b.dataset.arm="";b.textContent="칸 없애기";}},3000);return;}
+    formCfg.hide[b.dataset.hide]=true;saveFormCfg();buildMock();return;
+  }
+  if(b.dataset.show){formCfg.hide[b.dataset.show]=false;saveFormCfg();buildMock();}
+});
 function buildMenuEditor(){
   const fields=["대상","제목","입력자"].concat(formCfg.fields.map(f=>f.label));
   $("menuEditor").innerHTML=[["live","진행 중 구역 보이기"],["plan","예정 구역 보이기"],["all","전체 기록 구역 보이기"]].map(x=>`<label style="display:flex;gap:8px;align-items:center;margin:4px 0;font-size:14px;color:var(--ink)"><input type="checkbox" data-mh="${x[0]}" ${menuCfg.hide[x[0]]?"":"checked"} style="width:auto">${x[1]}</label>`).join("")+
@@ -676,22 +715,19 @@ $("menuEditor").addEventListener("click",e=>{
   }
 });
 function buildPdfOpts(){
-  const cols=[["topic","제목"],["who","대상"]].concat(formCfg.fields.map(f=>["x:"+f.label,f.label])).concat([["by","입력자"],["start","시작 시각(서버 기준)"],["end","종료 시각(서버 기준)"],["dur","소요 시간"],["memo","메모"],["hash","기록 번호(해시)"]]);
+  const cols=[["topic","제목"],["who","대상"]].filter(c=>!formCfg.hide[c[0]]).concat(formCfg.fields.map(f=>["x:"+f.label,f.label])).concat([["by","입력자"],["start","시작 시각(서버 기준)"],["end","종료 시각(서버 기준)"],["dur","소요 시간"],["memo","메모"],["hash","기록 번호(해시)"]]);
   $("pdfOpts").innerHTML=cols.map(c=>`<label style="display:inline-flex;align-items:center;gap:4px;margin:3px 12px 3px 0;font-size:13px;color:var(--ink)"><input type="checkbox" data-ps="${esc(c[0])}" ${(c[0]==="hash"?pdfSel.hash===true:pdfSel[c[0]]!==false)?"checked":""} style="width:auto">${esc(c[1])}</label>`).join("");
 }
 $("pdfOpts").addEventListener("change",e=>{const c=e.target.closest("[data-ps]");if(!c)return;pdfSel[c.dataset.ps]=c.checked;lsSet(PDFKEY,pdfSel);drawPreview();});
 async function openAdmin(){
-  buildFormEditor();buildMenuEditor();
+  buildMock();buildMenuEditor();
   const c=getCfg();if(c)$("cfgUrl").value=c.url;
-  buildLabelEditor();
   $("main").classList.add("hidden");$("fab").classList.add("hidden");$("admin").classList.remove("hidden");
   const v=await verify();
   $("anchor").value="[기록 무결성 요약]\n기준시각: "+fmt(Date.now())+"\n내부 기록 줄 수: "+v.n+" / 항목 수: "+sessions().length+"\n최종 해시: "+v.head+"\n체인 검사: "+(v.bad.length?"이상 있음":"정상");
 }
 $("closeAdmin").onclick=()=>{$("admin").classList.add("hidden");$("main").classList.remove("hidden");$("fab").classList.remove("hidden");connDefault();render();};
-function buildLabelEditor(){$("lbList").innerHTML=LSPEC.map(x=>`<label>${esc(x[1])}</label><input data-lk="${x[0]}" value="${esc(L(x[0]))}">`).join("");}
-$("lbSave").onclick=()=>{const o={};document.querySelectorAll("[data-lk]").forEach(i=>{const v=i.value.trim();if(v&&v!==DEFLB[i.dataset.lk])o[i.dataset.lk]=v;});localStorage.setItem("counsel_labels_v1",JSON.stringify(o));LB=Object.assign({},DEFLB,o);applyLabels();render();$("lbMsg").innerHTML='<span class="ok">저장했습니다.</span>';};
-$("lbReset").onclick=()=>{localStorage.removeItem("counsel_labels_v1");localStorage.removeItem("counsel_title_v1");LB=Object.assign({},DEFLB);applyLabels();buildLabelEditor();render();$("lbMsg").innerHTML='<span class="ok">기본값으로 되돌렸습니다.</span>';};
+$("lbReset").onclick=()=>{localStorage.removeItem("counsel_labels_v1");localStorage.removeItem("counsel_title_v1");LB=Object.assign({},DEFLB);applyLabels();buildMock();buildPdfOpts();render();$("lbMsg").innerHTML='<span class="ok">기본값으로 되돌렸습니다.</span>';};
 $("cfgSave").onclick=async()=>{
   const url=$("cfgUrl").value.trim(),m=$("cfgMsg");
   if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){m.innerHTML='<span class="err">주소(…/exec)를 확인하세요.</span>';return;}
@@ -759,8 +795,8 @@ function pdfTable(ss){
     const sel=k=>pdfSel[k]!==false,sx=x=>x.slice(0,10);
     const T=(srv,dev)=>srv?{ms:srv,mark:""}:{ms:dev,mark:"*"};
     const cols=[["no","번호"]];
-    if(sel("topic"))cols.push(["topic","제목"]);
-    if(sel("who"))cols.push(["who","대상"]);
+    if(sel("topic")&&!formCfg.hide.topic)cols.push(["topic","제목"]);
+    if(sel("who")&&!formCfg.hide.who)cols.push(["who","대상"]);
     const xl=formCfg.fields.map(f=>f.label);
     ss.forEach(s=>Object.keys(s.extra||{}).forEach(k=>{if(!xl.includes(k))xl.push(k);}));
     xl.forEach(l=>{if(sel("x:"+l))cols.push(["x:"+l,l]);});
