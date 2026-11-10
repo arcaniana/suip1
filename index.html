@@ -58,7 +58,13 @@ button:disabled{opacity:.5}
 .page table{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:18px}
 .page td,.page th{border:1px solid #bbb;padding:8px 10px;text-align:left;vertical-align:top}
 .page th{background:#f0f2f6;width:28%;font-weight:500}
+.plw{display:flex;gap:6px;margin-bottom:6px}.plw input{flex:2 1 0;min-width:0}.plw select{flex:1 1 0;min-width:0;padding:10px 4px}
 .page .m{font-size:13px;margin:0 0 6px}
+.page.lst table{font-size:12px;margin-bottom:0}
+.page.lst th{width:auto;text-align:center;font-size:12px;padding:6px 6px}
+.page.lst td{padding:5px 6px;line-height:1.35}
+.page.lst tr.sub td{border-top:none;font-size:11px;color:#444}
+.page.lst td.hs{font-size:9px;color:#777;word-break:break-all}
 .page .foot{position:absolute;left:56px;right:56px;bottom:30px;font-size:10px;color:#666;word-break:break-all;border-top:1px solid #ccc;padding-top:8px}
 </style>
 </head>
@@ -92,8 +98,10 @@ button:disabled{opacity:.5}
         <div><label data-l="who">대상 (이니셜·번호 등)</label><input id="who"></div>
         <div><label data-l="topic">제목</label><input id="topic"></div>
       </div>
+      <datalist id="dl-who"></datalist><datalist id="dl-topic"></datalist>
+      <div id="extraFields"></div>
       <label data-l="planned">예정 시각 (참고용 · 기록에는 저장되지 않음)</label>
-      <div id="plannedList"><input type="datetime-local" class="pl" style="margin-bottom:6px"></div>
+      <div id="plannedList"></div>
       <div class="row"><button class="sm sec" id="addTime" data-l="addTime">＋ 시간 추가</button><button class="sm sec" id="delTime">－ 마지막 시간 삭제</button></div>
       <div class="row" style="margin-top:12px">
         <button class="sec" id="planBtn" data-l="plan">📅 예정으로 등록</button>
@@ -101,11 +109,12 @@ button:disabled{opacity:.5}
       </div>
     </div>
 
-    <h3 data-l="live">진행 중</h3><div id="liveList"></div>
-    <h3 data-l="planH">예정</h3><div id="planList"></div>
-    <h3 data-l="allH">전체 기록 (모든 입력자)</h3>
+    <h3 data-l="live" id="hLive">진행 중</h3><div id="liveList"></div>
+    <h3 data-l="planH" id="hPlan">예정</h3><div id="planList"></div>
+    <h3 data-l="allH" id="hAll">전체 기록 (모든 입력자)</h3>
     <div class="fl" id="byFilter"></div>
     <div id="doneList"></div>
+    <div id="customSecs"></div>
   </div>
 
   <div id="admin" class="hidden">
@@ -123,6 +132,18 @@ button:disabled{opacity:.5}
       <div class="k" style="margin-top:4px">홈 화면에 달리기 아이콘으로 추가해 앱처럼 쓸 수 있습니다.</div>
       <div class="row" style="margin-top:8px"><button id="installBtn" class="hidden">앱 설치</button></div>
       <div class="k" id="installHint" style="margin-top:6px">안드로이드·PC 크롬: 주소창 오른쪽 설치 아이콘 또는 브라우저 메뉴 → "앱 설치/홈 화면에 추가"<br>아이폰(사파리): 공유 버튼 → "홈 화면에 추가"</div>
+    </div>
+    <div class="card">
+      <b>입력 항목 편집</b>
+      <div class="k" style="margin:4px 0 6px">기록 입력창의 칸을 더하거나 뺍니다. "선택지"는 한 줄에 하나씩 적으면 입력할 때 목록에서 고를 수 있고, 직접 적어도 됩니다. 시트에 연결돼 있으면 다른 분들 입력창에도 반영됩니다.</div>
+      <div id="fcEditor"></div>
+      <div class="row" style="margin-top:10px"><button class="sm sec" id="fcAdd">＋ 입력칸 추가</button><button id="fcSave">저장</button></div>
+      <div id="fcMsg" class="msg"></div>
+    </div>
+    <div class="card">
+      <b>화면 구성</b>
+      <div class="k" style="margin:4px 0 6px">메인 화면의 구역을 보이거나 숨기고, 조건에 맞는 기록만 모아 보는 구역을 새로 만듭니다. 이 기기에만 적용됩니다.</div>
+      <div id="menuEditor"></div>
     </div>
     <div class="card">
       <b>Google 시트로 보내기 (단방향)</b>
@@ -144,6 +165,8 @@ button:disabled{opacity:.5}
     <div class="card">
       <b>PDF 출력</b>
       <div class="row g"><div><label>시작일</label><input type="date" id="from"></div><div><label>종료일</label><input type="date" id="to"></div></div>
+      <div class="k" style="margin-top:8px">PDF에 넣을 항목</div>
+      <div id="pdfOpts" style="margin-top:2px"></div>
       <div class="row" style="margin-top:10px"><button id="pdfBtn">PDF 만들기</button></div>
       <div id="pdfMsg" class="msg"></div>
     </div>
@@ -189,6 +212,12 @@ let events=[],remoteEv=[],viewKey=null,DEV="",authData=null,busy=false,filterBy=
 const drafts={};
 let plans=[];try{plans=JSON.parse(localStorage.getItem("counsel_plans_v1")||"[]");}catch(e){plans=[];}
 const savePlans=()=>{try{localStorage.setItem("counsel_plans_v1",JSON.stringify(plans));}catch(e){}};
+const FORMKEY="counsel_form_v1",MENUKEY="counsel_menu_v1",PDFKEY="counsel_pdfsel_v1";
+let formCfg={who:[],topic:[],fields:[]},menuCfg={hide:{},secs:[]},pdfSel={};
+try{Object.assign(formCfg,JSON.parse(localStorage.getItem(FORMKEY)||"{}"));Object.assign(menuCfg,JSON.parse(localStorage.getItem(MENUKEY)||"{}"));pdfSel=JSON.parse(localStorage.getItem(PDFKEY)||"{}");}catch(e){}
+formCfg.fields=formCfg.fields||[];formCfg.who=formCfg.who||[];formCfg.topic=formCfg.topic||[];menuCfg.hide=menuCfg.hide||{};menuCfg.secs=menuCfg.secs||[];
+const lines=t=>String(t||"").split(/\n/).map(x=>x.trim()).filter(Boolean);
+const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
 let adminUntil=0,adminWas=false;const adminOn=()=>Date.now()<adminUntil;
 const LSPEC=[["title","화면 제목","기록 보관함"],["by","입력자 칸 이름","입력자 (내 이름)"],["newTop","새 항목 버튼","＋ 새 기록 / 시간 추가"],["newTitle","새 항목 창 제목","새 기록"],["who","대상 칸 이름","대상 (이니셜·번호 등)"],["topic","제목 칸 이름","제목"],["planned","예정 시각 칸 이름","예정 시각 (참고용 · 기록에는 저장되지 않음)"],["addTime","시간 추가 버튼","＋ 시간 추가"],["plan","예정 등록 버튼","📅 예정으로 등록"],["start","바로 시작 버튼","▶ 지금 바로 시작"],["live","진행 중 구역 이름","진행 중"],["planH","예정 구역 이름","예정"],["allH","전체 기록 구역 이름","전체 기록 (모든 입력자)"],["startPlan","예정 카드의 시작 버튼","▶ 지금 시작"],["end","종료 버튼","■ 종료"],["memoBtn","메모 저장 버튼","메모 저장"],["memoPh","메모 입력 안내","메모 (시각·입력자와 함께 기록)"],["cancelPlan","예정 취소 버튼","예정 취소"],["done","완료 표시","완료"],["pdfTitle","PDF 제목","기록 확인서"],["pdfFile","PDF·백업 파일 이름 앞부분","기록"]];
 const DEFLB={};LSPEC.forEach(x=>DEFLB[x[0]]=x[2]);
@@ -238,6 +267,7 @@ async function sync(quiet){
   const sig0=allEv().length;
   try{await flush();}catch(e){}
   if(getCfg()){try{const j=await remote("deleted",{dev:DEV});(j.sids||[]).forEach(redactLocal);}catch(e){}}
+  if(getCfg()){try{const j=await remote("getcfg");if(j.cfg){const n=Object.assign({who:[],topic:[],fields:[]},j.cfg);if(JSON.stringify(n)!==JSON.stringify(formCfg)){formCfg=n;lsSet(FORMKEY,formCfg);buildForm(true);}}}catch(e){}}
   if(viewKey){try{await loadAll();}catch(e){lastErr="불러오기 실패: "+e.message;}}
   connDefault();
   if(allEv().length!==sig0||!quiet)softRender();
@@ -256,7 +286,7 @@ function boot(){
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
   try{const u=new URLSearchParams(location.search).get("u");if(u&&/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){localStorage.setItem(CFGKEY,JSON.stringify({url:u}));history.replaceState(null,"",location.pathname);}}catch(e){}
   DEV=localStorage.getItem(DEVKEY)||(()=>{const v=hex(crypto.getRandomValues(new Uint8Array(6)));localStorage.setItem(DEVKEY,v);return v;})();
-  applyLabels();
+  applyLabels();buildForm();
   $("by").value=localStorage.getItem(BYKEY)||"";
   $("app").classList.remove("hidden");render();connDefault();sync();
   setInterval(()=>{if(!document.hidden)sync(true);},15000);
@@ -328,12 +358,12 @@ async function verify(){
 function sessions(){
   const m=new Map();
   allEv().filter(e=>!e.del).forEach(e=>{
-    let s=m.get(e.sid);if(!s){s={sid:e.sid,memos:[],hashes:[],by:new Set(),status:"x",last:0};m.set(e.sid,s);}
+    let s=m.get(e.sid);if(!s){s={sid:e.sid,memos:[],hashes:[],by:new Set(),status:"x",last:0,extra:{}};m.set(e.sid,s);}
     s.hashes.push(String(e.dev).slice(0,4)+"-"+e.seq+":"+e.hash.slice(0,10));s.last=Math.max(s.last,tkey(e));
     if(e.by)s.by.add(e.by);
-    if(e.type==="start"){s.start=e.at;s.startSrv=e.srv;s.startBy=e.by;if(e.who)s.who=e.who;if(e.topic)s.topic=e.topic;}
+    if(e.type==="start"){try{s.extra=e.planned?JSON.parse(e.planned):{};}catch(x){s.extra={};}s.start=e.at;s.startSrv=e.srv;s.startBy=e.by;if(e.who)s.who=e.who;if(e.topic)s.topic=e.topic;}
     else if(e.type==="end"){s.end=e.at;s.endSrv=e.srv;s.endBy=e.by;}
-    else if(e.type==="memo"){s.memos.push({at:e.at,text:e.text,by:e.by});}
+    else if(e.type==="memo"){s.memos.push({at:e.at,srv:e.srv,text:e.text,by:e.by});}
     else if(e.type==="retitle"){s.topic=e.text;s.retitled=true;}
   });
   m.forEach(s=>{s.status=s.end&&s.start?"done":s.start?"live":"x";s.memos.sort((a,b)=>a.at-b.at);});
@@ -348,7 +378,25 @@ function diffTxt(s){return "";
 }
 
 /* ---------- render ---------- */
+const extraTxt=o=>Object.keys(o||{}).map(k=>k+": "+o[k]).join(" · ");
+function buildForm(keep){
+  const old={};if(keep)document.querySelectorAll("[data-xf]").forEach(el=>{old[formCfg.fields[el.dataset.xf]&&formCfg.fields[el.dataset.xf].label]=el.value;});
+  $("who").setAttribute("list","dl-who");$("topic").setAttribute("list","dl-topic");
+  $("dl-who").innerHTML=formCfg.who.map(o=>`<option value="${esc(o)}">`).join("");
+  $("dl-topic").innerHTML=formCfg.topic.map(o=>`<option value="${esc(o)}">`).join("");
+  $("extraFields").innerHTML=formCfg.fields.map((f,i)=>`<label>${esc(f.label)}</label><input data-xf="${i}" list="dl-x${i}" value="${esc(old[f.label]||"")}"><datalist id="dl-x${i}">${(f.opts||[]).map(o=>`<option value="${esc(o)}">`).join("")}</datalist>`).join("");
+}
+function extrasObj(){const o={};document.querySelectorAll("[data-xf]").forEach(el=>{const f=formCfg.fields[el.dataset.xf],v=el.value.trim();if(f&&v)o[f.label]=v;});return o;}
+const xJson=o=>Object.keys(o||{}).length?JSON.stringify(o):"";
+function matchSec(s,sec){
+  const v=String(sec.value||"").toLowerCase();if(!v)return true;
+  const t=sec.field==="대상"?s.who:sec.field==="제목"?s.topic:sec.field==="입력자"?Array.from(s.by).join(" "):((s.extra||{})[sec.field]||"");
+  return String(t||"").toLowerCase().includes(v);
+}
 function render(){
+  $("hLive").style.display=$("liveList").style.display=menuCfg.hide.live?"none":"";
+  $("hPlan").style.display=$("planList").style.display=menuCfg.hide.plan?"none":"";
+  $("hAll").style.display=$("byFilter").style.display=$("doneList").style.display=menuCfg.hide.all?"none":"";
   const ss=sessions();
   const live=ss.filter(s=>s.status==="live").sort((a,b)=>b.start-a.start);
     const all=ss.filter(s=>s.status==="done").sort((a,b)=>b.last-a.last);
@@ -363,7 +411,7 @@ function render(){
   $("liveList").innerHTML=live.filter(vis).map(s=>`<div class="card">
     <div class="row sp"><span class="pill live">${esc(L("live"))}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
-    <div class="k">${esc(s.who)}</div>
+    <div class="k">${esc(s.who)}${extraTxt(s.extra)?" · "+esc(extraTxt(s.extra)):""}</div>
     <div class="k">시작 ${fmt(s.start)}${s.startSrv?" (서버 "+fmtS(s.startSrv)+")":""} ${esc(diffTxt(s))}</div>
     <div class="timer" data-t="${s.start}">${dur(Date.now()-s.start)}</div>
     ${memos(s)}
@@ -372,14 +420,22 @@ function render(){
   $("planList").innerHTML=plans.filter(p=>!filterBy||p.by===filterBy).map(p=>{const s={sid:p.id,topic:p.topic};return `<div class="card">
     <div class="row sp"><span class="pill plan">예정 ${esc(fmtP(p.planned)||"(시각 미정)")}</span><span class="k">참고용 · 이 기기에만 있음</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
-    <div class="k">${esc(p.who)}</div>
+    <div class="k">${esc(p.who)}${extraTxt(p.x)?" · "+esc(extraTxt(p.x)):""}</div>
     <div class="row" style="margin-top:8px"><button class="sm" data-act="startPlan" data-sid="${p.id}">${esc(L("startPlan"))}</button><button class="sm sec" data-act="cancelPlan" data-sid="${p.id}">${esc(L("cancelPlan"))}</button></div></div>`;}).join("")||'<div class="k" style="margin:0 2px">없음</div>';
   $("doneList").innerHTML=all.filter(vis).map(s=>`<div class="card">
     <div class="row sp"><span class="pill ${s.status==="done"?"done":""}">${L("done")+" "+dur(s.end-s.start)}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
-    <div class="k">${esc(s.who)}</div>
+    <div class="k">${esc(s.who)}${extraTxt(s.extra)?" · "+esc(extraTxt(s.extra)):""}</div>
     <div class="k">${s.start?"시작 "+fmt(s.start)+(s.startSrv?" (서버 "+fmtS(s.startSrv)+")":"")+" · 종료 "+fmt(s.end)+(s.endSrv?" (서버 "+fmtS(s.endSrv)+")":""):""}</div>
     ${memos(s)}${adminOn()?`<div class="row" style="margin-top:8px;justify-content:flex-end"><button class="sm bad" data-act="del" data-sid="${s.sid}">삭제</button></div>`:""}</div>`).join("")||'<div class="k" style="margin:0 2px">아직 기록이 없습니다.</div>';
+  const mini=s=>`<div class="card"><div class="row sp"><span class="pill ${s.status==="live"?"live":"done"}">${s.status==="live"?esc(L("live")):esc(L("done"))+" "+dur(s.end-s.start)}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
+    <div style="margin-top:4px"><span class="ttl">${esc(s.topic||"(제목 없음)")}</span></div>
+    <div class="k">${esc(s.who)}${extraTxt(s.extra)?" · "+esc(extraTxt(s.extra)):""}</div>
+    <div class="k">시작 ${fmt(s.start)}${s.end?" · 종료 "+fmt(s.end):""}</div>${memos(s)}${adminOn()?`<div class="row" style="margin-top:8px;justify-content:flex-end"><button class="sm bad" data-act="del" data-sid="${s.sid}">삭제</button></div>`:""}</div>`;
+  $("customSecs").innerHTML=menuCfg.secs.map(sec=>{
+    const list=ss.filter(x=>(x.status==="done"||x.status==="live")&&matchSec(x,sec)).sort((a,b)=>b.last-a.last).filter(vis);
+    return `<h3>${esc(sec.name)} <span class="k">(${list.length})</span></h3>`+(list.map(mini).join("")||'<div class="k" style="margin:0 2px">없음</div>');
+  }).join("");
   lastSig=sigOf();
 }
 function softRender(){
@@ -394,14 +450,29 @@ document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset
 
 /* ---------- actions ---------- */
 const newSid=()=>"s"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+function mkPl(){
+  const w=document.createElement("div");w.className="pl plw";
+  const opt=(a,b)=>`<option value="${a}">${b}</option>`;
+  const hs=[...Array(12)].map((_,i)=>opt(String(i+1),(i+1)+"시")).join(""),ms=[...Array(60)].map((_,i)=>opt(String(i).padStart(2,"0"),String(i).padStart(2,"0")+"분")).join("");
+  w.innerHTML=`<input type="date" data-p="d"><select data-p="a"><option value="">오전/오후</option><option value="AM">오전</option><option value="PM">오후</option></select><select data-p="h"><option value="">시</option>${hs}</select><select data-p="m"><option value="">분</option>${ms}</select>`;
+  const q=k=>w.querySelector('[data-p="'+k+'"]');
+  let mn="";
+  Object.defineProperty(w,"value",{get(){const d=q("d").value,a=q("a").value,h=q("h").value,m=q("m").value;if(!d||!a||!h||m==="")return"";let H=Number(h)%12;if(a==="PM")H+=12;return d+"T"+String(H).padStart(2,"0")+":"+m;},
+    set(v){if(!v){["d","a","h","m"].forEach(k=>q(k).value="");return;}const[d,t]=v.split("T"),H=Number(t.slice(0,2));q("d").value=d;q("a").value=H>=12?"PM":"AM";q("h").value=String(H%12||12);q("m").value=t.slice(3,5);}});
+  Object.defineProperty(w,"disabled",{get(){return q("d").disabled;},set(v){w.querySelectorAll("input,select").forEach(e=>e.disabled=!!v);}});
+  Object.defineProperty(w,"min",{get(){return mn;},set(v){mn=v||"";q("d").min=mn?mn.slice(0,10):"";}});
+  w.clearTime=()=>{["a","h","m"].forEach(k=>q(k).value="");};
+  w.addEventListener("change",e=>{if(e.target.dataset.p==="m")e.target.blur();});
+  return w;
+}
 const times=()=>Array.from(document.querySelectorAll("#plannedList .pl")).map(i=>i.value).filter(Boolean);
 function formVals(){return{who:$("who").value.trim(),topic:$("topic").value.trim(),planned:times()[0]||""};}
-function clearForm(){$("who").value="";$("topic").value="";$("plannedList").innerHTML='<input type="datetime-local" class="pl" style="margin-bottom:6px">';$("newCard").classList.add("hidden");$("newTop").classList.remove("hidden");$("fab").classList.remove("hidden");}
+function clearForm(){$("who").value="";$("topic").value="";buildForm();$("plannedList").innerHTML="";$("plannedList").appendChild(mkPl());$("newCard").classList.add("hidden");$("newTop").classList.remove("hidden");$("fab").classList.remove("hidden");}
 $("fab").onclick=$("newTop").onclick=()=>{$("newTop").classList.add("hidden");$("newCard").classList.remove("hidden");$("fab").classList.add("hidden");$("newCard").scrollIntoView({behavior:"smooth",block:"center"});$("who").focus();};
 $("newClose").onclick=()=>{$("newCard").classList.add("hidden");$("newTop").classList.remove("hidden");$("fab").classList.remove("hidden");};
-function chainTimes(){const a=Array.from(document.querySelectorAll("#plannedList .pl"));a.forEach((el,i)=>{if(!i)return;const p=a[i-1].value;el.disabled=!p;el.min=p||"";if(!p)el.value="";else if(el.value&&el.value<=p)el.value="";});}
-$("plannedList").addEventListener("input",chainTimes);$("plannedList").addEventListener("change",chainTimes);
-$("addTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .pl"),last=a[a.length-1];if(!last.value){alert("앞 시간을 먼저 입력하세요.");return;}const i=document.createElement("input");i.type="datetime-local";i.className="pl";i.style.marginBottom="6px";i.min=last.value;$("plannedList").appendChild(i);i.focus();};
+function chainTimes(){const a=Array.from(document.querySelectorAll("#plannedList .pl"));a.forEach((el,i)=>{if(!i)return;const p=a[i-1].value;el.disabled=!p;el.min=p||"";if(!p)el.value="";else if(el.value&&el.value<=p){el.clearTime();alert("앞 시간보다 늦은 시각을 선택하세요.");}});}
+$("plannedList").appendChild(mkPl());$("plannedList").addEventListener("input",chainTimes);$("plannedList").addEventListener("change",chainTimes);
+$("addTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .pl"),last=a[a.length-1];if(!last.value){alert("앞 시간을 먼저 입력하세요.");return;}const i=mkPl();i.min=last.value;i.disabled=false;$("plannedList").appendChild(i);i.querySelector("input").focus();};
 $("delTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .pl");if(a.length>1)a[a.length-1].remove();};
 $("by").addEventListener("change",()=>localStorage.setItem(BYKEY,$("by").value.trim()));
 $("planBtn").onclick=async()=>{
@@ -409,13 +480,13 @@ $("planBtn").onclick=async()=>{
   if(!f.who){alert("대상을 입력하세요.");return;}
   const ts=times();if(!ts.length){alert("예정 시각을 입력하세요.");return;}
   for(let i=1;i<ts.length;i++)if(ts[i]<=ts[i-1]){alert("뒤 시간은 앞 시간보다 늦어야 합니다.");return;}
-  ts.forEach(p=>plans.push({id:newSid(),by,who:f.who,topic:f.topic,planned:p}));savePlans();
+  const xo=extrasObj();ts.forEach(p=>plans.push({id:newSid(),by,who:f.who,topic:f.topic,planned:p,x:xo}));savePlans();
   clearForm();render();
 };
 $("startBtn").onclick=async()=>{
   const by=getBy();if(!by)return;const f=formVals();
   if(!f.who){alert("대상을 입력하세요.");return;}
-  if(await append({type:"start",sid:newSid(),by,who:f.who,topic:f.topic})){clearForm();render();}
+  if(await append({type:"start",sid:newSid(),by,who:f.who,topic:f.topic,planned:xJson(extrasObj())})){clearForm();render();}
 };
 const sess=sid=>sessions().find(s=>s.sid===sid);
 function redactLocal(sid){
@@ -454,7 +525,7 @@ $("main").addEventListener("click",async ev=>{
     if(confirm("종료할까요?"))append({type:"end",sid,by});
   }else if(act==="startPlan"){
     const p=plans.find(x=>x.id===sid);
-    if(p&&await append({type:"start",sid:newSid(),by,who:p.who,topic:p.topic})){plans=plans.filter(x=>x.id!==sid);savePlans();render();}
+    if(p&&await append({type:"start",sid:newSid(),by,who:p.who,topic:p.topic,planned:xJson(p.x)})){plans=plans.filter(x=>x.id!==sid);savePlans();render();}
   }else if(act==="cancelPlan"){
     if(confirm("예정을 삭제할까요?")){plans=plans.filter(x=>x.id!==sid);savePlans();render();}
   }
@@ -464,7 +535,58 @@ $("main").addEventListener("click",async ev=>{
 let taps=0,tapT=null;
 $("title").onclick=()=>{taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,1500);if(taps>=5){taps=0;gate();}};
 function download(name,blob){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}
+let fcDraft=null;
+function readFc(){
+  if(!fcDraft)return;
+  const w=document.querySelector('[data-fk="who"]'),t=document.querySelector('[data-fk="topic"]');
+  if(w)fcDraft.who=lines(w.value);if(t)fcDraft.topic=lines(t.value);
+  fcDraft.fields.forEach((f,i)=>{const l=document.querySelector('[data-fl="'+i+'"]'),o=document.querySelector('[data-fo="'+i+'"]');if(l)f.label=l.value.trim();if(o)f.opts=lines(o.value);});
+}
+function drawFc(){
+  $("fcEditor").innerHTML=`<label>대상 칸 선택지 (한 줄에 하나)</label><textarea data-fk="who" style="min-height:50px">${esc(fcDraft.who.join("\n"))}</textarea>
+  <label>제목 칸 선택지 (한 줄에 하나)</label><textarea data-fk="topic" style="min-height:50px">${esc(fcDraft.topic.join("\n"))}</textarea>`+
+  fcDraft.fields.map((f,i)=>`<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:4px"><div class="row sp"><label style="margin:8px 0 3px">추가 입력칸 ${i+1} 이름</label><button class="sm bad" data-fdel="${i}">삭제</button></div><input data-fl="${i}" value="${esc(f.label)}"><label>선택지 (한 줄에 하나, 비워도 됨)</label><textarea data-fo="${i}" style="min-height:50px">${esc((f.opts||[]).join("\n"))}</textarea></div>`).join("");
+}
+function buildFormEditor(){fcDraft=JSON.parse(JSON.stringify(formCfg));drawFc();}
+$("fcEditor").addEventListener("click",e=>{const b=e.target.closest("[data-fdel]");if(!b)return;readFc();fcDraft.fields.splice(Number(b.dataset.fdel),1);drawFc();});
+$("fcAdd").onclick=()=>{readFc();fcDraft.fields.push({label:"새 항목",opts:[]});drawFc();};
+$("fcSave").onclick=async()=>{
+  readFc();const m=$("fcMsg"),labs=fcDraft.fields.map(f=>f.label);
+  if(labs.some(l=>!l)){m.innerHTML='<span class="err">입력칸 이름을 비울 수 없습니다.</span>';return;}
+  if(new Set(labs).size!==labs.length||labs.some(l=>["대상","제목","입력자"].includes(l))){m.innerHTML='<span class="err">입력칸 이름이 겹치거나 예약어(대상·제목·입력자)입니다.</span>';return;}
+  formCfg=JSON.parse(JSON.stringify(fcDraft));lsSet(FORMKEY,formCfg);buildForm();buildPdfOpts();buildMenuEditor();
+  if(getCfg()){
+    if(!viewKey){m.innerHTML='<span class="warn">이 기기에는 저장했습니다. 다른 분들께 반영하려면 관리자로 들어온 상태(전체 보기)에서 저장하세요.</span>';return;}
+    try{await remote("setcfg",{key:viewKey,cfg:formCfg});m.innerHTML='<span class="ok">저장했습니다. 다른 분들 화면에는 잠시 후(15초 이내) 반영됩니다.</span>';}
+    catch(e){m.innerHTML='<span class="err">서버 저장 실패: '+esc(e.message)+'</span>';}
+  }else m.innerHTML='<span class="ok">저장했습니다.</span>';
+};
+function buildMenuEditor(){
+  const fields=["대상","제목","입력자"].concat(formCfg.fields.map(f=>f.label));
+  $("menuEditor").innerHTML=[["live","진행 중 구역 보이기"],["plan","예정 구역 보이기"],["all","전체 기록 구역 보이기"]].map(x=>`<label style="display:flex;gap:8px;align-items:center;margin:4px 0;font-size:14px;color:var(--ink)"><input type="checkbox" data-mh="${x[0]}" ${menuCfg.hide[x[0]]?"":"checked"} style="width:auto">${x[1]}</label>`).join("")+
+  `<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:6px"><div class="k">만들어 둔 구역</div>`+
+  (menuCfg.secs.map((c,i)=>`<div class="row sp" style="margin:4px 0"><span style="font-size:14px">${esc(c.name)} <span class="k">— ${esc(c.field)}에 "${esc(c.value)}" 포함</span></span><button class="sm bad" data-msdel="${i}">삭제</button></div>`).join("")||'<div class="k">없음</div>')+
+  `<div class="k" style="margin-top:8px">새 구역 추가 (조건에 맞는 기록만 모아 보여줍니다)</div>
+  <div class="row g" style="margin-top:4px"><input id="msName" placeholder="구역 이름"><select id="msField">${fields.map(f=>`<option>${esc(f)}</option>`).join("")}</select><input id="msVal" placeholder="포함할 글자"></div>
+  <div class="row" style="margin-top:8px"><button class="sm sec" id="msAdd">＋ 구역 추가</button></div></div>`;
+}
+$("menuEditor").addEventListener("change",e=>{const c=e.target.closest("[data-mh]");if(!c)return;menuCfg.hide[c.dataset.mh]=!c.checked;lsSet(MENUKEY,menuCfg);render();});
+$("menuEditor").addEventListener("click",e=>{
+  const d=e.target.closest("[data-msdel]");
+  if(d){menuCfg.secs.splice(Number(d.dataset.msdel),1);lsSet(MENUKEY,menuCfg);buildMenuEditor();render();return;}
+  if(e.target.id==="msAdd"){
+    const name=$("msName").value.trim(),field=$("msField").value,value=$("msVal").value.trim();
+    if(!name||!value){alert("구역 이름과 포함할 글자를 입력하세요.");return;}
+    menuCfg.secs.push({id:Date.now().toString(36),name,field,value});lsSet(MENUKEY,menuCfg);buildMenuEditor();render();
+  }
+});
+function buildPdfOpts(){
+  const cols=[["topic","제목"],["who","대상"]].concat(formCfg.fields.map(f=>["x:"+f.label,f.label])).concat([["by","입력자"],["start","시작 시각(서버 기준)"],["end","종료 시각(서버 기준)"],["dur","소요 시간"],["memo","메모"],["hash","기록 번호(해시)"]]);
+  $("pdfOpts").innerHTML=cols.map(c=>`<label style="display:inline-flex;align-items:center;gap:4px;margin:3px 12px 3px 0;font-size:13px;color:var(--ink)"><input type="checkbox" data-ps="${esc(c[0])}" ${(c[0]==="hash"?pdfSel.hash===true:pdfSel[c[0]]!==false)?"checked":""} style="width:auto">${esc(c[1])}</label>`).join("");
+}
+$("pdfOpts").addEventListener("change",e=>{const c=e.target.closest("[data-ps]");if(!c)return;pdfSel[c.dataset.ps]=c.checked;lsSet(PDFKEY,pdfSel);});
 async function openAdmin(){
+  buildFormEditor();buildMenuEditor();buildPdfOpts();
   const c=getCfg();if(c)$("cfgUrl").value=c.url;
   buildLabelEditor();
   $("main").classList.add("hidden");$("fab").classList.add("hidden");$("admin").classList.remove("hidden");
@@ -492,7 +614,7 @@ $("cfgOff").onclick=()=>{localStorage.removeItem(CFGKEY);viewKey=null;remoteEv=[
 $("viewBtn").onclick=async()=>{
   const k=$("viewPw").value;const m=$("viewMsg");if(!getCfg()){m.innerHTML='<span class="err">먼저 시트에 연결하세요.</span>';return;}if(!k){return;}
   m.textContent="불러오는 중…";
-  try{viewKey=k;await loadAll();$("viewPw").value="";lastErr="";connDefault();render();m.innerHTML='<span class="ok">'+remoteEv.length+'줄을 불러왔습니다. 관리 닫기를 누르면 전체가 보입니다.</span>';}
+  try{viewKey=k;await loadAll();$("viewPw").value="";lastErr="";connDefault();render();m.innerHTML='<span class="ok">'+sessions().length+'건을 불러왔습니다. 관리 닫기를 누르면 전체가 보입니다.</span>';}
   catch(e){viewKey=null;remoteEv=[];connDefault();m.innerHTML='<span class="err">실패: '+esc(e.message)+'</span>';}
 };
 function viewOff(){viewKey=null;remoteEv=[];connDefault();render();$("viewMsg").innerHTML='<span class="ok">전체 보기를 해제했습니다.</span>';}
@@ -529,29 +651,69 @@ $("pdfBtn").onclick=async()=>{
     const v=await verify();
     if(document.fonts&&document.fonts.ready)await document.fonts.ready;
     const {jsPDF}=window.jspdf;const pdf=new jsPDF({unit:"mm",format:"a4"});const box=$("report");
-    for(let i=0;i<ss.length;i++){
-      const s=ss[i];
-      box.innerHTML=`<div class="page"><h2>${esc(L("pdfTitle"))}</h2>
-        <div class="meta">출력 시각 ${fmt(Date.now())} · ${i+1} / ${ss.length}</div>
-        <table>
-          <tr><th>제목</th><td>${esc(s.topic)||"-"}</td></tr>
-          <tr><th>대상</th><td>${esc(s.who)}</td></tr>
-          <tr><th>입력자</th><td>시작 ${esc(s.startBy)||"-"}${s.end?" / 종료 "+esc(s.endBy):""}</td></tr>
-          <tr><th>실제 시작 시각</th><td>${fmt(s.start)}${diffTxt(s)?" ("+esc(diffTxt(s))+")":""}</td></tr>
-          <tr><th>서버 기록 시각</th><td>${s.startSrv?"시작 "+fmt(s.startSrv)+(s.endSrv?" / 종료 "+fmt(s.endSrv):""):"(시트 미연결 상태에서 기록됨)"}</td></tr>
-          <tr><th>종료 시각</th><td>${s.end?fmt(s.end):"(종료 기록 없음)"}</td></tr>
-          <tr><th>소요 시간</th><td>${s.end?dur(s.end-s.start):"-"}</td></tr>
-        </table>
-        <div style="font-size:14px;font-weight:500;margin-bottom:6px">메모</div>
-        ${s.memos.length?s.memos.map(m=>`<div class="m">${fmtS(m.at)} (${esc(m.by)}) — ${esc(m.text)}</div>`).join(""):'<div class="m" style="color:#777">없음</div>'}
-        <div class="foot">기록 번호 ${s.hashes.map(esc).join(" / ")}<br>체인 검사: ${v.bad.length?"이상 있음":"정상"} · 전체 최종 해시 ${v.head}<br>※ 서버 기록 시각은 Google 서버가 기록을 받은 시각이며, 각 기록은 이전 기록의 해시와 연결되어 사후 수정이 감지됩니다.</div></div>`;
-      const c=await html2canvas(box.firstElementChild,{scale:2,backgroundColor:"#fff"});
-      if(i>0)pdf.addPage();
-      pdf.addImage(c.toDataURL("image/jpeg",0.92),"JPEG",0,0,210,297);
+    const sel=k=>pdfSel[k]!==false,sx=x=>x.slice(0,10);
+    const T=(srv,dev)=>srv?{ms:srv,mark:""}:{ms:dev,mark:"*"};
+    const cols=[["no","번호"]];
+    if(sel("topic"))cols.push(["topic","제목"]);
+    if(sel("who"))cols.push(["who","대상"]);
+    const xl=formCfg.fields.map(f=>f.label);
+    ss.forEach(s=>Object.keys(s.extra||{}).forEach(k=>{if(!xl.includes(k))xl.push(k);}));
+    xl.forEach(l=>{if(sel("x:"+l))cols.push(["x:"+l,l]);});
+    if(sel("by"))cols.push(["by","입력자"]);
+    if(sel("start"))cols.push(["start","시작 시각"]);
+    if(sel("end"))cols.push(["end","종료 시각"]);
+    if(sel("dur"))cols.push(["dur","소요 시간"]);
+    const tm=o=>o.ms?esc(fmt(o.ms).replace(/\. /g,"-").replace(/-(\d\d:)/," $1").replace(/\.$/,""))+o.mark:"-";
+    const cell=(c,s,i)=>{
+      const st=T(s.startSrv,s.start),en=s.end?T(s.endSrv,s.end):null;
+      switch(c){
+        case "no":return i+1;
+        case "topic":return esc(s.topic)||"-";
+        case "who":return esc(s.who)||"-";
+        case "by":return esc(Array.from(new Set([s.startBy,s.endBy].filter(Boolean))).join(", "))||"-";
+        case "start":return tm(st);
+        case "end":return en?tm(en):"(기록 없음)";
+        case "dur":return en?dur(en.ms-st.ms):"-";
+        default:return esc((s.extra||{})[c.slice(2)]||"-");
+      }
+    };
+    const anyDev=ss.some(s=>!s.startSrv||(s.end&&!s.endSrv));
+    const span=cols.length;
+    const rowsHtml=ss.map((s,i)=>{
+      let h=`<tr>${cols.map(c=>`<td>${cell(c[0],s,i)}</td>`).join("")}</tr>`;
+      if(sel("memo")&&s.memos.length)h+=`<tr class="sub"><td></td><td colspan="${span-1}">${s.memos.map(m=>`<div>메모 ${esc(fmtS(m.srv||m.at))} (${esc(m.by)}) — ${esc(m.text)}</div>`).join("")}</td></tr>`;
+      if(pdfSel.hash===true)h+=`<tr class="sub"><td></td><td colspan="${span-1}" class="hs">기록 번호(해시 앞 10자) ${s.hashes.map(x=>esc(sx(x))).join(" / ")}</td></tr>`;
+      return h;
+    });
+    const head=`<tr>${cols.map(c=>`<th>${esc(c[1])}</th>`).join("")}</tr>`;
+    const LIMIT=1123-60-56;
+    const pages=[];let cur=null,tb=null;
+    const mk=()=>{const d=document.createElement("div");d.className="page lst";d.innerHTML=`<h2>${esc(L("pdfTitle"))}</h2><div class="meta">출력 시각 ${esc(fmt(Date.now()))} · 총 ${ss.length}건</div><table><thead>${head}</thead><tbody></tbody></table>`;box.innerHTML="";box.appendChild(d);return d;};
+    cur=mk();tb=cur.querySelector("tbody");
+    const done=[];
+    for(let i=0;i<rowsHtml.length;i++){
+      const tmp=document.createElement("tbody");tmp.innerHTML=rowsHtml[i];
+      const nodes=Array.from(tmp.children);
+      nodes.forEach(n=>tb.appendChild(n));
+      if(cur.querySelector("table").offsetTop+cur.querySelector("table").offsetHeight>LIMIT&&tb.children.length>nodes.length){
+        nodes.forEach(n=>tb.removeChild(n));
+        done.push(cur);
+        cur=mk();tb=cur.querySelector("tbody");nodes.forEach(n=>tb.appendChild(n));
+      }
     }
+    done.push(cur);
+    const foot=(p)=>`<div class="foot">${p} / ${done.length} 쪽 · 체인 검사: ${v.bad.length?"이상 있음":"정상"} · 전체 최종 해시 ${esc(v.head)}<br>※ 시각은 Google 서버가 기록을 받은 시각 기준입니다${anyDev?" (*표시는 서버 시각이 없어 기기 시각으로 표시)":""}. 각 기록은 이전 기록의 해시와 연결되어 사후 수정이 감지됩니다.</div>`;
+    const imgs=[];
+    for(let p=0;p<done.length;p++){
+      const pg=done[p];box.innerHTML="";box.appendChild(pg);
+      pg.insertAdjacentHTML("beforeend",foot(p+1));
+      const c=await html2canvas(pg,{scale:2,backgroundColor:"#fff"});
+      imgs.push(c.toDataURL("image/jpeg",0.92));
+    }
+    imgs.forEach((u,i)=>{if(i>0)pdf.addPage();pdf.addImage(u,"JPEG",0,0,210,297);});
     box.innerHTML="";
     download(L("pdfFile")+"_"+new Date().toLocaleDateString("sv-SE",{timeZone:TZ})+".pdf",pdf.output("blob"));
-    msg.innerHTML='<span class="ok">PDF를 저장했습니다. ('+ss.length+'건)</span>';
+    msg.innerHTML='<span class="ok">PDF를 저장했습니다. ('+ss.length+'건, '+done.length+'쪽)</span>';
   }catch(e){msg.innerHTML='<span class="err">실패: '+esc(e&&(e.message||e))+'</span>';}
 };
 
