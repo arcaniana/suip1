@@ -535,7 +535,7 @@ function render(){
     <div class="row sp"><span class="pill live">${esc(L("live"))}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(s.who)}${extraTxt(s.extra)?" · "+esc(extraTxt(s.extra)):""}</div>
-    <div class="k">시작 ${fmt(s.start)}${s.startSrv?" (서버 "+fmtHM(s.startSrv)+")":""} ${esc(diffTxt(s))}${s.retimed?" · 관리자 수정 (원래 "+fmt(s.origStart)+")":""}</div>
+    <div class="k">시작 ${fmt(s.start)}${s.startSrv?" (서버 "+fmtHM(s.startSrv)+")":""} ${esc(diffTxt(s))}${s.retimed&&adminOn()?" · 관리자 수정 (원래 "+fmt(s.origStart)+")":""}</div>
     <div class="timer" data-t="${s.start}">${dur(Date.now()-s.start)}</div>
     ${memos(s)}
     <textarea data-draft="m:${s.sid}" placeholder="${esc(L("memoPh"))}" style="margin-top:8px">${esc(drafts["m:"+s.sid]||"")}</textarea>
@@ -552,7 +552,7 @@ function render(){
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(s.who)}${extraTxt(s.extra)?" · "+esc(extraTxt(s.extra)):""}</div>
     <div class="k">${s.start?"시작 "+fmt(s.start)+(s.startSrv?" (서버 "+fmtHM(s.startSrv)+")":"")+" · 종료 "+fmt(s.end)+(s.endSrv?" (서버 "+fmtHM(s.endSrv)+")":""):""}</div>
-    ${s.retimed?`<div class="k warn">관리자가 시각을 수정했습니다 (원래 ${fmt(s.origStart)} ~ ${s.origEnd?fmt(s.origEnd):"종료 기록 없음"})</div>`:""}${memos(s)}${adminOn()?`${editTimeSid===s.sid?`<div class="card" style="background:#f6f8fc;margin:8px 0 0"><label>시작 시각</label><input type="datetime-local" data-draft="ts:${s.sid}" value="${esc(drafts["ts:"+s.sid]!==undefined?drafts["ts:"+s.sid]:fmtMin(s.start).replace(" ","T"))}"><label>종료 시각</label><input type="datetime-local" data-draft="te:${s.sid}" value="${esc(drafts["te:"+s.sid]!==undefined?drafts["te:"+s.sid]:fmtMin(s.end).replace(" ","T"))}"><div class="row" style="margin-top:8px"><button class="sm" data-act="saveTime" data-sid="${s.sid}">저장</button><button class="sm sec" data-act="cancelTime">취소</button></div><div class="k" style="margin-top:6px">원래 기록은 지워지지 않고 수정 내역으로 남습니다.</div></div>`:""}<div class="row" style="margin-top:8px;justify-content:flex-end"><button class="sm sec" data-act="editTime" data-sid="${s.sid}">시간 수정</button><button class="sm bad" data-act="del" data-sid="${s.sid}">삭제</button></div>`:""}</div>`).join("")||'<div class="k" style="margin:0 2px">아직 기록이 없습니다.</div>';
+    ${s.retimed&&adminOn()?`<div class="k warn">관리자가 시각을 수정했습니다 (원래 ${fmt(s.origStart)} ~ ${s.origEnd?fmt(s.origEnd):"종료 기록 없음"})</div>`:""}${memos(s)}${adminOn()?`${editTimeSid===s.sid?`<div class="card" style="background:#f6f8fc;margin:8px 0 0"><label>시작 시각</label><input type="datetime-local" data-draft="ts:${s.sid}" value="${esc(drafts["ts:"+s.sid]!==undefined?drafts["ts:"+s.sid]:fmtMin(s.start).replace(" ","T"))}"><label>종료 시각</label><input type="datetime-local" data-draft="te:${s.sid}" value="${esc(drafts["te:"+s.sid]!==undefined?drafts["te:"+s.sid]:fmtMin(s.end).replace(" ","T"))}"><div class="row" style="margin-top:8px"><button class="sm" data-act="saveTime" data-sid="${s.sid}">저장</button><button class="sm sec" data-act="cancelTime">취소</button></div><div class="k" style="margin-top:6px">원래 기록은 지워지지 않고 수정 내역으로 남습니다.</div></div>`:""}<div class="row" style="margin-top:8px;justify-content:flex-end"><button class="sm sec" data-act="editTime" data-sid="${s.sid}">시간 수정</button><button class="sm bad" data-act="del" data-sid="${s.sid}">삭제</button></div>`:""}</div>`).join("")||'<div class="k" style="margin:0 2px">아직 기록이 없습니다.</div>';
   const mini=s=>`<div class="card"><div class="row sp"><span class="pill ${s.status==="live"?"live":"done"}">${s.status==="live"?esc(L("live")):esc(L("done"))+" "+dur(s.end-s.start)}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
     <div style="margin-top:4px"><span class="ttl">${esc(s.topic||(formCfg.hide.topic?"기록":"(제목 없음)"))}</span></div>
     <div class="k">${esc(s.who)}${extraTxt(s.extra)?" · "+esc(extraTxt(s.extra)):""}</div>
@@ -1020,7 +1020,7 @@ function pdfTable(ss){
     if(sel("dur"))cols.push(["dur","소요 시간"]);
     const tm=o=>o.ms?esc(fmtMin(o.ms))+o.mark:"-";
     const cell=(c,s,i)=>{
-      const st=s.retimed?{ms:s.start,mark:"†"}:T(s.startSrv,s.start),en=s.end?(s.rtEnd?{ms:s.end,mark:"†"}:T(s.endSrv,s.end)):null;
+      const st=s.retimed?{ms:s.start,mark:adminOn()?"†":""}:T(s.startSrv,s.start),en=s.end?(s.rtEnd?{ms:s.end,mark:adminOn()?"†":""}:T(s.endSrv,s.end)):null;
       switch(c){
         case "no":return i+1;
         case "topic":return esc(s.topic)||"-";
@@ -1032,12 +1032,12 @@ function pdfTable(ss){
         default:return esc((s.extra||{})[c.slice(2)]||"-");
       }
     };
-    const anyDev=ss.some(s=>!s.retimed&&(!s.startSrv||(s.end&&!s.endSrv))),anyRt=ss.some(s=>s.retimed);
+    const anyDev=ss.some(s=>!s.retimed&&(!s.startSrv||(s.end&&!s.endSrv))),anyRt=adminOn()&&ss.some(s=>s.retimed);
     const span=cols.length;
     const rowsHtml=ss.map((s,i)=>{
       let h=`<tr>${cols.map(c=>`<td>${cell(c[0],s,i)}</td>`).join("")}</tr>`;
       if(sel("memo")&&s.memos.length)h+=`<tr class="sub"><td></td><td colspan="${span-1}">${s.memos.map(m=>`<div>메모 ${esc(fmtHM(m.srv||m.at))} (${esc(m.by)}) — ${esc(m.text)}</div>`).join("")}</td></tr>`;
-      if(s.retimed)h+=`<tr class="sub"><td></td><td colspan="${span-1}">† 관리자 수정 — 원래 시각 ${esc(fmtMin(s.origStart))} ~ ${s.origEnd?esc(fmtMin(s.origEnd)):"(종료 기록 없음)"}</td></tr>`;
+      if(s.retimed&&adminOn())h+=`<tr class="sub"><td></td><td colspan="${span-1}">† 관리자 수정 — 원래 시각 ${esc(fmtMin(s.origStart))} ~ ${s.origEnd?esc(fmtMin(s.origEnd)):"(종료 기록 없음)"}</td></tr>`;
       if(pdfSel.hash===true)h+=`<tr class="sub"><td></td><td colspan="${span-1}" class="hs">기록 번호(해시 앞 10자) ${s.hashes.map(x=>esc(sx(x))).join(" / ")}</td></tr>`;
       return h;
     });
