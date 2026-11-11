@@ -172,7 +172,7 @@ input,select,textarea{font-size:16px}
     </div>
     <div class="card">
       <b>전체 보기 (비밀번호)</b>
-      <div class="k">시트에 모인 모든 입력자의 기록을 불러와 이 화면에서 한꺼번에 봅니다. Apps Script에 정해 둔 <b>전체 보기 비밀번호</b>가 필요하며, 이 기기에는 저장되지 않습니다(앱을 닫으면 해제).</div>
+      <div class="k">시트에 모인 모든 입력자의 기록을 불러와 이 화면에서 한꺼번에 봅니다. Apps Script에 정해 둔 <b>전체 보기 비밀번호</b>가 필요하며, 관리 메뉴에 비밀번호로 들어왔다면 입력 없이 바로 불러옵니다. 이 기기에는 저장되지 않습니다(앱을 닫으면 해제).</div>
       <input id="viewPw" type="password" placeholder="전체 보기 비밀번호" style="margin-top:8px">
       <div class="row" style="margin-top:8px"><button id="viewBtn">불러오기</button><button class="sec" id="viewOff2">해제</button></div>
       <div id="viewMsg" class="msg"></div>
@@ -855,7 +855,7 @@ function buildPdfOpts(){
 }
 $("pdfOpts").addEventListener("change",e=>{const c=e.target.closest("[data-ps]");if(!c)return;pdfSel[c.dataset.ps]=c.checked;lsSet(PDFKEY,pdfSel);drawPreview();});
 async function openAdmin(){
-  buildMock();buildMenuEditor();
+  buildMock();buildMenuEditor();updViewPw();
   const c=getCfg();if(c)$("cfgUrl").value=c.url;
   $("main").classList.add("hidden");$("fab").classList.add("hidden");$("admin").classList.remove("hidden");
   const v=await verify();
@@ -878,12 +878,13 @@ $("linkMake").onclick=()=>{const c=getCfg();$("linkOut").value=c?location.origin
 $("linkCopy").onclick=async()=>{try{await navigator.clipboard.writeText($("linkOut").value);$("cfgMsg").innerHTML='<span class="ok">복사했습니다.</span>';}catch(e){$("cfgMsg").innerHTML='<span class="warn">직접 복사하세요.</span>';}};
 $("cfgOff").onclick=()=>{localStorage.removeItem(CFGKEY);try{if(location.search)history.replaceState(null,"",location.pathname);}catch(e){}viewKey=null;remoteEv=[];lastErr="";connDefault();render();$("cfgMsg").innerHTML='<span class="ok">연결을 끊었습니다. 이후 기록은 이 기기에만 저장됩니다.</span>';};
 $("viewBtn").onclick=async()=>{
-  const k=$("viewPw").value;const m=$("viewMsg");if(!getCfg()){m.innerHTML='<span class="err">먼저 시트에 연결하세요.</span>';return;}if(!k){return;}
+  const k=viewKey||$("viewPw").value;const m=$("viewMsg");if(!getCfg()){m.innerHTML='<span class="err">먼저 시트에 연결하세요.</span>';return;}if(!k){m.innerHTML='<span class="warn">비밀번호를 입력하세요.</span>';return;}
   m.textContent="불러오는 중…";
-  try{viewKey=k;await loadAll();$("viewPw").value="";lastErr="";connDefault();render();m.innerHTML='<span class="ok">'+sessions().length+'건을 불러왔습니다. 관리 닫기를 누르면 전체가 보입니다.</span>';}
-  catch(e){viewKey=null;remoteEv=[];connDefault();m.innerHTML='<span class="err">실패: '+esc(e.message)+'</span>';}
+  try{viewKey=k;await loadAll();$("viewPw").value="";lastErr="";connDefault();render();updViewPw();m.innerHTML='<span class="ok">'+sessions().length+'건을 불러왔습니다. 관리 닫기를 누르면 전체가 보입니다.</span>';}
+  catch(e){viewKey=null;remoteEv=[];connDefault();updViewPw();m.innerHTML='<span class="err">실패: '+esc(e.message)+'</span>';}
 };
-function viewOff(){viewKey=null;remoteEv=[];connDefault();render();$("viewMsg").innerHTML='<span class="ok">전체 보기를 해제했습니다.</span>';}
+const updViewPw=()=>$("viewPw").classList.toggle("hidden",!!viewKey);
+function viewOff(){viewKey=null;remoteEv=[];connDefault();render();updViewPw();$("viewMsg").innerHTML='<span class="ok">전체 보기를 해제했습니다.</span>';}
 $("adminOff").onclick=()=>{adminUntil=0;adminWas=false;connDefault();render();notify("관리자 모드를 껐습니다.");};
 $("viewOff").onclick=viewOff;$("viewOff2").onclick=viewOff;
 $("verifyBtn").onclick=async()=>{const v=await verify();$("verifyMsg").innerHTML=v.bad.length?'<span class="err">이상 발견: '+v.bad.map(esc).join(", ")+'</span>':'<span class="ok">정상 — 내부 기록 '+v.n+'줄 모두 연결·내용 일치'+(v.red?' (삭제된 '+v.red+'줄은 내용 없이 연결만 확인)':'')+'</span>';};
