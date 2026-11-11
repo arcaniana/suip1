@@ -22,7 +22,7 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;font-size:15px;line-height:1.5}
 .wrap{max-width:760px;margin:0 auto;padding:16px 14px calc(60px + env(safe-area-inset-bottom))}
-h1{font-size:20px;margin:6px 0 2px;user-select:none;cursor:default}
+h1{font-size:40px;line-height:1.25;text-align:center;margin:6px 0 10px;user-select:none;cursor:default}
 h3.tg{cursor:pointer;user-select:none}h3{font-size:14px;margin:16px 2px 6px;color:var(--mute);font-weight:500}
 .sub{color:var(--mute);font-size:13px;margin-bottom:12px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px}
@@ -104,7 +104,6 @@ input,select,textarea{font-size:16px}
 
 <div id="app" class="hidden">
   <h1 id="title" data-l="title">기록 보관함</h1>
-  <div class="row sp" style="margin-bottom:10px"><div class="sub" id="conn" style="margin:0"></div><div class="row" style="flex:0 0 auto"><button class="sm bad hidden" id="adminOff">관리자 모드 끄기</button><button class="sm sec hidden" id="viewOff">전체 보기 끄기</button></div></div>
 
   <div id="main">
     <div class="card">
@@ -154,6 +153,7 @@ input,select,textarea{font-size:16px}
     </div>
     <div id="gateMsg" class="k" style="margin:14px 2px;text-align:center">이름을 입력하고 <b>확인</b>을 누르면 내 진행 상황이 나타납니다.</div>
     <button class="sec" id="pdfMenu" data-l="pdfMenu" style="width:100%;margin:18px 0 10px;padding:10px">PDF 출력</button>
+    <div class="row" style="margin:4px 0 10px;justify-content:center;text-align:center"><div class="sub" id="conn" style="margin:0"></div><div class="row" style="flex:0 0 auto"><button class="sm bad hidden" id="adminOff">관리자 모드 끄기</button><button class="sm sec hidden" id="viewOff">전체 보기 끄기</button></div></div>
   </div>
 
   <div id="admin" class="hidden">
@@ -350,7 +350,7 @@ const pendingN=()=>getCfg()?events.filter(e=>!e.srv).length:0;
 let lastErr="";
 function connDefault(){
   const c=getCfg(),p=pendingN();
-  let h=c?'<span class="ok">● 시트로 전송 중 (보내기만 함)</span>'+(p?' <span class="warn">· 전송 대기 '+p+'건</span>':''):'<span class="warn">● 이 기기에만 저장됩니다 (시트 미연결)</span>';
+  let h=c?'<span class="ok">● 서버와 연결됨</span>'+(p?' <span class="warn">· 전송 대기 '+p+'건</span>':''):'<span class="warn">● 서버와 연결되지 않음 · 이 기기에만 저장됩니다</span>';
   if(lastErr)h+=' <span class="err">· '+esc(lastErr)+'</span>';
   if(viewKey)h+=' <span class="ok">· 전체 보기 중 ('+sessions().length+'건)</span>';
   if(adminOn())h+=' <span class="warn">· 관리자 모드(삭제 가능, 10분)</span>';
