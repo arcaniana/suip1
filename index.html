@@ -144,6 +144,7 @@ input,select,textarea{font-size:16px}
       </div>
       <div class="row" style="margin-top:14px;justify-content:center">
         <button class="sec" id="planBtn" data-l="plan" style="flex:0 1 70%;min-width:220px;padding:14px 20px;font-size:18px">📅 예약하기</button>
+        <button class="sec hidden" id="advClose" type="button" style="flex:0 1 70%;min-width:220px;padding:12px 20px;font-size:16px">✕ 예약하기 닫기</button>
         <button id="startBtn" data-l="start" style="flex:0 1 52%;min-width:170px;padding:15px 18px;font-size:18px;font-weight:700;border-radius:12px">▶ 시작하기</button>
       </div>
     </div>
@@ -278,7 +279,7 @@ const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
 const tgOpen={plan:false,all:false};
 let pdfKey=null,pdfLoaded=false,gateTarget="admin";
 let adminUntil=0,adminWas=false;const adminOn=()=>Date.now()<adminUntil;
-const LSPEC=[["title","화면 제목","기록 보관함"],["by","입력자 칸 이름","입력자 (내 이름)"],["newTop","새 항목 버튼","＋ 새 기록 / 시간 추가"],["newTitle","새 항목 창 제목","새 기록"],["who","대상 칸 이름","대상 (이니셜·번호 등)"],["topic","제목 칸 이름","제목"],["planned","일정 시각 칸 이름","일정 시각 (참고용 · 기록에는 저장되지 않음)"],["addTime","시간 추가 버튼","＋ 시간 추가"],["plan","예약 등록 버튼","📅 예약하기"],["start","시작 버튼","▶ 시작하기"],["live","진행 중 구역 이름","진행 중"],["planH","예정 구역 이름","예정"],["allH","전체 기록 구역 이름","전체 기록 (모든 입력자)"],["startPlan","예정 카드의 시작 버튼","▶ 지금 시작"],["end","종료 버튼","■ 종료"],["memoBtn","메모 저장 버튼","메모 저장"],["memoPh","메모 입력 안내","메모 (시각·입력자와 함께 기록)"],["cancelPlan","예정 취소 버튼","예정 취소"],["done","완료 표시","완료"],["pdfMenu","PDF 출력 메뉴 이름","PDF 출력"],["pdfTitle","PDF 제목","기록 확인서"],["pdfFile","PDF·백업 파일 이름 앞부분","기록"]];
+const LSPEC=[["title","화면 제목","기록 보관함"],["by","입력자 칸 이름","입력자 (내 이름)"],["newTop","새 항목 버튼","＋ 새 기록 / 시간 추가"],["newTitle","새 항목 창 제목","새 기록"],["who","대상 칸 이름","대상 (이니셜·번호 등)"],["topic","제목 칸 이름","제목"],["planned","일정 시각 칸 이름","일정 시각 (참고용 · 기록에는 저장되지 않음)"],["addTime","시간 추가 버튼","＋ 시간 추가"],["plan","예약 등록 버튼","📅 예약하기"],["start","시작 버튼","▶ 시작하기"],["live","진행 중 구역 이름","진행 중"],["planH","예약 내역 구역 이름","예약 내역"],["allH","전체 기록 구역 이름","전체 기록 (모든 입력자)"],["startPlan","예정 카드의 시작 버튼","▶ 지금 시작"],["end","종료 버튼","■ 종료"],["memoBtn","메모 저장 버튼","메모 저장"],["memoPh","메모 입력 안내","메모 (시각·입력자와 함께 기록)"],["cancelPlan","예약 취소 버튼","예약 취소"],["done","완료 표시","완료"],["pdfMenu","PDF 출력 메뉴 이름","PDF 출력"],["pdfTitle","PDF 제목","기록 확인서"],["pdfFile","PDF·백업 파일 이름 앞부분","기록"]];
 const DEFLB={};LSPEC.forEach(x=>DEFLB[x[0]]=x[2]);
 let LB=Object.assign({},DEFLB);
 try{Object.assign(LB,JSON.parse(localStorage.getItem("counsel_labels_v1")||"{}"));const old=localStorage.getItem("counsel_title_v1");if(old&&!localStorage.getItem("counsel_labels_v1"))LB.title=old;}catch(e){}
@@ -547,7 +548,7 @@ function render(){
   const ss=sessions();
   const live=ss.filter(s=>s.status==="live").sort((a,b)=>b.start-a.start);
     const all=ss.filter(s=>s.status==="done").sort((a,b)=>b.last-a.last);
-  $("startBtn").classList.toggle("hidden",hasMyLive());
+  $("startBtn").classList.toggle("hidden",hasMyLive()||advOn);
   const ar=o=>o?"▾ ":"▸ ";
   $("hPlan").style.display=(menuCfg.hide.plan||!advOn)?"none":"";$("planList").style.display=(menuCfg.hide.plan||!advOn||!tgOpen.plan)?"none":"";
   $("hPlan").textContent=ar(tgOpen.plan)+L("planH")+" ("+plans.filter(mineP).length+")";
@@ -572,7 +573,7 @@ function render(){
     <textarea data-draft="m:${s.sid}" placeholder="${esc(L("memoPh"))}" style="margin-top:8px">${esc(drafts["m:"+s.sid]||"")}</textarea>
     ${adminOn()&&editTimeSid===s.sid?timeEditor(s):""}<div class="row" style="margin-top:8px"><button class="sec" data-act="memo" data-sid="${s.sid}">${esc(L("memoBtn"))}</button><button class="bad" data-act="end" data-sid="${s.sid}">${esc(L("end"))}</button>${adminOn()?`<button class="sm sec" data-act="editTime" data-sid="${s.sid}" style="margin-left:auto">시간 수정</button><button class="sm bad" data-act="del" data-sid="${s.sid}">삭제</button>`:""}</div></div>`).join("")||'<div class="k" style="margin:0 2px">없음</div>';
   $("planList").innerHTML=plans.filter(p=>mineP(p)&&(!filterBy||p.by===filterBy)).slice().sort((a,b)=>String(a.planned).localeCompare(String(b.planned))).map(p=>{const s={sid:p.id,topic:p.topic};return `<div class="card">
-    <div class="row sp"><span class="pill plan">예정 ${esc(fmtP(p.planned)||"(시각 미정)")}${p.plannedEnd?" ~ "+esc(fmtP(p.plannedEnd).slice(p.planned&&p.plannedEnd.slice(0,10)===p.planned.slice(0,10)?11:0)):""}</span><span class="k">자동 시작·종료 예정</span></div>
+    <div class="row sp"><span class="pill plan">예약 ${esc(fmtP(p.planned)||"(시각 미정)")}${p.plannedEnd?" ~ "+esc(fmtP(p.plannedEnd).slice(p.planned&&p.plannedEnd.slice(0,10)===p.planned.slice(0,10)?11:0)):""}</span><span class="k">자동 시작·종료 예정</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(p.who)}${extraTxt(p.x)?" · "+esc(extraTxt(p.x)):""}</div>
     <div class="row" style="margin-top:8px"><button class="sm" data-act="startPlan" data-sid="${p.id}">${esc(L("startPlan"))}</button><button class="sm sec" data-act="cancelPlan" data-sid="${p.id}">${esc(L("cancelPlan"))}</button></div></div>`;}).join("")||'<div class="k" style="margin:0 2px">없음</div>';
@@ -759,7 +760,7 @@ $("byOk").onclick=async()=>{
   try{
     await fetchMine();render();
     const ss=sessions().filter(x=>Array.from(x.by).some(n=>nmz(n)===nmz(by)));
-    notify(by+"님의 진행 상황을 불러왔습니다.\n진행 중 "+ss.filter(x=>x.status==="live").length+"건 · 예정 "+plans.filter(p=>nmz(p.by)===nmz(by)).length+"건");
+    notify(by+"님의 진행 상황을 불러왔습니다.\n진행 중 "+ss.filter(x=>x.status==="live").length+"건 · 예약 "+plans.filter(p=>nmz(p.by)===nmz(by)).length+"건");if(ss.some(x=>x.status==="live")){setTimeout(()=>{try{$("hLive").scrollIntoView({behavior:"smooth",block:"start"});}catch(e){}},80);}
   }catch(e){notify("불러오지 못했습니다: "+(e.message||e));}
   $("byOk").disabled=false;
 };
@@ -779,8 +780,9 @@ $("planBtn").onclick=async()=>{
     plans.push(p);
     if(!saved||!saved.srv)allSynced=false;
   }
-  savePlans();clearForm();render();notify(allSynced?"예정이 구글 서버에 저장되었습니다. 기기가 꺼져 있어도 자동 시작·종료됩니다.":"예정은 기기에 저장됐지만 서버 동기화가 안 됐습니다. 인터넷 연결 후 동기화되어야 기기가 꺼져도 자동 실행됩니다.");
+  savePlans();clearForm();tgOpen.plan=true;render();scrollPlan();notify(allSynced?"예정이 구글 서버에 저장되었습니다. 기기가 꺼져 있어도 자동 시작·종료됩니다.":"예정은 기기에 저장됐지만 서버 동기화가 안 됐습니다. 인터넷 연결 후 동기화되어야 기기가 꺼져도 자동 실행됩니다.");
 };
+function scrollPlan(){setTimeout(()=>{const h=$("hPlan");if(h&&h.style.display!=="none")h.scrollIntoView({behavior:"smooth",block:"start"});},60);}
 /* ---------- 엑셀로 예약 올리기 ---------- */
 let xlRows=[];
 const p2=n=>String(n).padStart(2,"0");
@@ -876,7 +878,7 @@ $("xlGo").onclick=async()=>{
     if(!await append({type:"plan",sid:p.id,by:r.by,who:"",topic:"",planned:JSON.stringify(p)})){notify("등록 중 저장에 실패했습니다. ("+n+"건 등록됨)");break;}
     await flush();plans.push(p);n++;
   }
-  savePlans();xlRows=[];xlShow();render();
+  savePlans();xlRows=[];xlShow();tgOpen.plan=true;render();scrollPlan();
   notify(n+"건을 예정으로 등록했습니다."+(skip?"\n겹쳐서 제외된 "+skip+"건":"")+"\n서버에 저장되면 기기가 꺼져 있어도 자동 시작·종료됩니다.");
 };
 $("startBtn").onclick=async()=>{
@@ -958,16 +960,17 @@ $("main").addEventListener("click",async ev=>{
     if(hasMyLive(by)){notify("이미 진행 중인 기록이 있습니다.\n종료한 뒤에 시작할 수 있습니다.");return;}
     if(p&&await append({type:"start",sid:p.id,at:Date.now(),by,who:p.who,topic:p.topic,planned:xJson(p.x)})){plans=plans.filter(x=>x.id!==sid);savePlans();render();}
   }else if(act==="cancelPlan"){
-    if(confirm("예정을 삭제할까요?")){await append({type:"cancelPlan",sid,by});plans=plans.filter(x=>x.id!==sid);savePlans();render();}
+    if(confirm("예약을 삭제할까요?")){await append({type:"cancelPlan",sid,by});plans=plans.filter(x=>x.id!==sid);savePlans();render();}
   }
 });
 
 /* ---------- admin ---------- */
 let advOn=false;try{localStorage.removeItem("counsel_adv_v1");}catch(e){}
-function applyAdv(){$("excelCard").classList.toggle("hidden",!advOn);$("plannedList").classList.toggle("hidden",!advOn);$("timeRow").classList.toggle("hidden",!advOn);$("planBtn").classList.toggle("hidden",!advOn);}
+function applyAdv(){$("advClose").classList.toggle("hidden",!advOn);$("excelCard").classList.toggle("hidden",!advOn);$("plannedList").classList.toggle("hidden",!advOn);$("timeRow").classList.toggle("hidden",!advOn);$("planBtn").classList.toggle("hidden",!advOn);}
 applyAdv();
+$("advClose").onclick=()=>{advOn=false;applyAdv();render();notify("예약하기를 닫았습니다.");};
 let aTaps=0,aT=null;
-$("newTitleB").onclick=()=>{aTaps++;clearTimeout(aT);aT=setTimeout(()=>aTaps=0,1500);if(aTaps>=5){aTaps=0;advOn=!advOn;applyAdv();render();notify(advOn?"예약하기와 날짜·시간 입력을 표시합니다.":"예약하기와 날짜·시간 입력을 숨겼습니다.");}};
+$("newTitleB").onclick=()=>{aTaps++;clearTimeout(aT);aT=setTimeout(()=>aTaps=0,1500);if(aTaps>=5){aTaps=0;advOn=!advOn;if(advOn)tgOpen.plan=true;applyAdv();render();notify(advOn?"예약하기와 날짜·시간 입력을 표시합니다.":"예약하기와 날짜·시간 입력을 숨겼습니다.");}};
 let taps=0,tapT=null;
 $("title").onclick=()=>{taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,1500);if(taps>=5){taps=0;gate("admin");}};
 function download(name,blob){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}
