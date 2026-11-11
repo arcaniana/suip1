@@ -103,7 +103,7 @@ input,select,textarea{font-size:16px}
 
 <div id="app" class="hidden">
   <h1 id="title" data-l="title">기록 보관함</h1>
-  <div class="row sp" style="margin-bottom:10px"><div class="sub" id="conn" style="margin:0"></div><div class="row" style="flex:0 0 auto"><button class="sm sec hidden" id="viewOff">전체 보기 끄기</button></div></div>
+  <div class="row sp" style="margin-bottom:10px"><div class="sub" id="conn" style="margin:0"></div><div class="row" style="flex:0 0 auto"><button class="sm bad hidden" id="adminOff">관리자 모드 끄기</button><button class="sm sec hidden" id="viewOff">전체 보기 끄기</button></div></div>
 
   <div id="main">
     <div class="card">
@@ -235,7 +235,7 @@ const hex=b=>Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")
 const sha=async s=>hex(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)));
 
 let events=[],remoteEv=[],viewKey=null,DEV="",authData=null,busy=false,filterBy="",editing=null,pendingRender=false,lastSig="";
-const drafts={};
+const drafts={};const selDel=new Set();
 let plans=[];try{plans=JSON.parse(localStorage.getItem("counsel_plans_v1")||"[]");}catch(e){plans=[];}
 const savePlans=()=>{try{localStorage.setItem("counsel_plans_v1",JSON.stringify(plans));}catch(e){}};
 function restorePlansFromEvents(){
@@ -299,7 +299,7 @@ function connDefault(){
   if(lastErr)h+=' <span class="err">· '+esc(lastErr)+'</span>';
   if(viewKey)h+=' <span class="ok">· 전체 보기 중 ('+sessions().length+'건)</span>';
   if(adminOn())h+=' <span class="warn">· 관리자 모드(삭제 가능, 10분)</span>';
-  setConn(h);$("viewOff").classList.toggle("hidden",!viewKey);
+  setConn(h);$("viewOff").classList.toggle("hidden",!viewKey);$("adminOff").classList.toggle("hidden",!adminOn());
 }
 async function flush(){
   if(!getCfg())return;
@@ -478,6 +478,7 @@ function render(){
   if(filterBy&&!names.includes(filterBy))filterBy="";
   $("byFilter").innerHTML=names.length?['<span class="chip '+(filterBy?"":"on")+'" data-act="filter" data-v="">전체</span>'].concat(names.map(n=>'<span class="chip '+(filterBy===n?"on":"")+'" data-act="filter" data-v="'+esc(n)+'">'+esc(n)+'</span>')).join(""):"";
   const vis=s=>!filterBy||s.by.has(filterBy);
+  if(!adminOn())selDel.clear();else{const ids=new Set(all.map(x=>x.sid));Array.from(selDel).forEach(k=>{if(!ids.has(k))selDel.delete(k);});}
   const titleHtml=s=>editing===s.sid
     ?`<div class="row"><input data-draft="t:${s.sid}" value="${esc(drafts["t:"+s.sid]!==undefined?drafts["t:"+s.sid]:s.topic)}" style="flex:1"><button class="sm" data-act="saveTitle" data-sid="${s.sid}">저장</button><button class="sm sec" data-act="cancelEdit">취소</button></div>`
     :`<span class="ttl">${esc(s.topic||(formCfg.hide.topic?"기록":"(제목 없음)"))}</span> <button class="sm sec" data-act="editTitle" data-sid="${s.sid}" title="제목 편집">✎</button>`;
@@ -496,8 +497,10 @@ function render(){
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(p.who)}${extraTxt(p.x)?" · "+esc(extraTxt(p.x)):""}</div>
     <div class="row" style="margin-top:8px"><button class="sm" data-act="startPlan" data-sid="${p.id}">${esc(L("startPlan"))}</button><button class="sm sec" data-act="cancelPlan" data-sid="${p.id}">${esc(L("cancelPlan"))}</button></div></div>`;}).join("")||'<div class="k" style="margin:0 2px">없음</div>';
-  $("doneList").innerHTML=all.filter(vis).map(s=>`<div class="card">
-    <div class="row sp"><span class="pill ${s.status==="done"?"done":""}">${L("done")+" "+dur(s.end-s.start)}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
+  const dvis=all.filter(vis),allSel=dvis.length>0&&dvis.every(x=>selDel.has(x.sid));
+  const bulkBar=adminOn()&&dvis.length?`<div class="row sp" style="margin:4px 0 8px"><button class="sm sec" data-act="selAll">${allSel?"선택 해제":"일괄 선택"}</button><button class="sm bad" data-act="delSel"${selDel.size?"":" disabled"}>선택 삭제 (${selDel.size})</button></div>`:"";
+  $("doneList").innerHTML=bulkBar+dvis.map(s=>`<div class="card">
+    <div class="row sp"><span style="display:flex;gap:8px;align-items:center">${adminOn()?`<input type="checkbox" data-act="sel" data-sid="${s.sid}" ${selDel.has(s.sid)?"checked":""} style="width:22px;height:22px;margin:0;flex:0 0 auto">`:""}<span class="pill ${s.status==="done"?"done":""}">${L("done")+" "+dur(s.end-s.start)}</span></span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(s.who)}${extraTxt(s.extra)?" · "+esc(extraTxt(s.extra)):""}</div>
     <div class="k">${s.start?"시작 "+fmt(s.start)+(s.startSrv?" (서버 "+fmtHM(s.startSrv)+")":"")+" · 종료 "+fmt(s.end)+(s.endSrv?" (서버 "+fmtHM(s.endSrv)+")":""):""}</div>
@@ -519,7 +522,7 @@ function softRender(){
   render();
 }
 document.addEventListener("focusout",()=>{if(pendingRender){pendingRender=false;setTimeout(render,50);}});
-function tick(){if(adminWas&&!adminOn()){adminWas=false;render();}else if(adminOn())adminWas=true;
+function tick(){if(adminWas&&!adminOn()){adminWas=false;connDefault();render();}else if(adminOn())adminWas=true;
   document.querySelectorAll("[data-t]").forEach(el=>{el.textContent=dur(Date.now()-Number(el.dataset.t));});}
 document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.draft;if(k)drafts[k]=e.target.value;});
 
@@ -607,6 +610,27 @@ function mkSlot(){
   d.append(g1,g2,g3,hint);return d;
 }
 
+/* ---------- 이미 예약된 시간 중복 방지 ---------- */
+// 이 기기의 예정 + (전체 보기 중이면) 다른 입력자의 예정을 모두 "예약된 시간"으로 본다.
+function busyList(){
+  const out=plans.filter(p=>p.planned&&p.plannedEnd).map(p=>({id:p.id,s:p.planned,e:p.plannedEnd,by:p.by,topic:p.topic}));
+  if(viewKey&&remoteEv.length){
+    const have=new Set(out.map(x=>x.id)),map=new Map();
+    remoteEv.filter(e=>!e.del).sort((a,b)=>tkey(a)-tkey(b)||a.seq-b.seq).forEach(e=>{
+      if(e.type==="plan"){try{const p=JSON.parse(e.planned||"{}");if(p.planned&&p.plannedEnd)map.set(e.sid,{id:e.sid,s:p.planned,e:p.plannedEnd,by:e.by,topic:e.topic});}catch(x){}}
+      else if(e.type==="cancelPlan"||e.type==="start"||e.type==="end")map.delete(e.sid);
+    });
+    map.forEach((v,k)=>{if(!have.has(k))out.push(v);});
+  }
+  return out;
+}
+// s·e 중 하나만 있으면 그 시각이 예약 구간 안에 들어가는지, 둘 다 있으면 구간이 겹치는지 검사한다. (끝과 시작이 딱 맞닿는 것은 허용)
+function findConflict(s,e){
+  return busyList().find(b=>s&&e?(s<b.e&&b.s<e):s?(b.s<=s&&s<b.e):e?(b.s<e&&e<=b.e):false)||null;
+}
+function conflictMsg(b){
+  return "이미 예약된 시간입니다.\n"+fmtP(b.s)+" ~ "+fmtP(b.e).slice(b.s.slice(0,10)===b.e.slice(0,10)?11:0)+(b.by?" ("+b.by+")":"")+"\n다른 시간을 선택해 주세요.";
+}
 const slots=()=>Array.from(document.querySelectorAll("#plannedList .slot")).map(d=>{const p=d.querySelectorAll(".pl");return{s:p[0].value,e:p[1].value};}).filter(x=>x.s||x.e);
 function formVals(){return{who:$("who").value.trim(),topic:$("topic").value.trim(),planned:""};}
 function clearForm(){$("who").value="";$("topic").value="";buildForm();$("plannedList").innerHTML="";$("plannedList").appendChild(mkSlot());}
@@ -619,7 +643,18 @@ function chainTimes(){
     el.min=p;el.strict=!!(i%2);
     if(el.value&&(i%2?el.value<=p:el.value<p)){el.clearTime();notify(i%2?"종료는 시작보다 늦어야 합니다.":"다음 시작은 앞 종료 이후여야 합니다.");}});
 }
-$("plannedList").appendChild(mkSlot());$("plannedList").addEventListener("input",chainTimes);$("plannedList").addEventListener("change",chainTimes);chainTimes();
+$("plannedList").appendChild(mkSlot());
+// 예약된 시간을 고르면 알림을 띄우고 그 입력을 취소한다.
+$("plannedList").addEventListener("change",ev=>{
+  const pl=ev.target.closest&&ev.target.closest(".pl");if(!pl)return;
+  const slot=pl.closest(".slot"),pls=slot.querySelectorAll(".pl");
+  const c=findConflict(pls[0].value,pls[1].value);if(!c)return;
+  pl.clearTime();
+  const dh=slot.querySelector(".dh"),dm=slot.querySelector(".dm");
+  if(pl===pls[0]||(dh&&dh.value)||(dm&&dm.value)){if(dh)dh.value="";if(dm)dm.value="";}
+  chainTimes();notify(conflictMsg(c));
+});
+$("plannedList").addEventListener("input",chainTimes);$("plannedList").addEventListener("change",chainTimes);chainTimes();
 $("addTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .slot"),last=a[a.length-1],p=last.querySelectorAll(".pl");if(!p[0].value||!p[1].value){notify("앞 칸의 시작·종료 시각을 모두 입력해야 칸을 추가할 수 있습니다.");return;}const n=mkSlot(),ed=p[1].value.slice(0,10);n.querySelectorAll(".pl").forEach(x=>x.forceDate(ed));$("plannedList").appendChild(n);chainTimes();n.querySelector("input").focus();};
 $("delTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .slot");if(a.length>1)a[a.length-1].remove();};
 $("by").addEventListener("change",()=>localStorage.setItem(BYKEY,$("by").value.trim()));
@@ -627,6 +662,7 @@ $("planBtn").onclick=async()=>{
   const by=getBy();if(!by)return;const f=formVals();
   const ts=slots();if(!ts.length||ts.some(x=>!x.s||!x.e)){notify("예정의 시작과 종료를 모두 입력하세요.");return;}
   for(let i=0;i<ts.length;i++)if(ts[i].e<=ts[i].s||(i&&ts[i].s<ts[i-1].e)){notify("시작·종료 순서를 확인하세요.");return;}
+  for(const x of ts){const c=findConflict(x.s,x.e);if(c){notify(conflictMsg(c));return;}}
   const xo=extrasObj();let allSynced=true;
   for(const slot of ts){
     const p={id:newSid(),by,who:f.who,topic:f.topic,planned:slot.s,plannedEnd:slot.e,x:xo};
@@ -661,6 +697,19 @@ async function deleteSession(sid){
     connDefault();render();
   }catch(e){notify("삭제 중 오류: "+e.message);connDefault();render();}
 }
+async function deleteMany(sids){
+  if(!adminOn()){notify("관리자 비밀번호를 다시 입력하세요. (관리 메뉴)");return;}
+  if(!sids.length)return;
+  const sent=sids.some(sid=>allEv().some(e=>e.sid===sid&&e.srv));
+  if(getCfg()&&sent&&!viewKey){notify("시트에 이미 저장된 기록이라 시트에서도 지워야 합니다.\n관리 메뉴의 '전체 보기'를 먼저 불러온 뒤 삭제하세요.");return;}
+  if(!confirm("선택한 "+sids.length+"건을 삭제할까요?\n내용(대상·제목·메모·입력자)이 지워지며 복구할 수 없습니다.\n기록 흐름(번호·해시)만 '삭제됨' 표시로 남습니다."))return;
+  adminUntil=Date.now()+10*60000;
+  try{
+    sids.forEach(redactLocal);
+    if(getCfg()){await flush();if(viewKey){for(const sid of sids)await remote("redact",{key:viewKey,sid});await loadAll();}}
+    selDel.clear();connDefault();render();notify(sids.length+"건을 삭제했습니다.");
+  }catch(e){notify("삭제 중 오류: "+e.message+"\n(일부만 삭제되었을 수 있습니다)");connDefault();render();}
+}
 $("main").addEventListener("click",async ev=>{
   const t=ev.target.closest("[data-act]");if(!t)return;
   const act=t.dataset.act,sid=t.dataset.sid;
@@ -668,6 +717,9 @@ $("main").addEventListener("click",async ev=>{
   if(act==="editTitle"){editing=sid;render();return;}
   if(act==="cancelEdit"){delete drafts["t:"+editing];editing=null;render();return;}
   if(act==="del"){await deleteSession(sid);return;}
+  if(act==="sel"){if(t.checked)selDel.add(sid);else selDel.delete(sid);render();return;}
+  if(act==="selAll"){const v=sessions().filter(x=>x.status==="done"&&(!filterBy||x.by.has(filterBy)));if(v.length&&v.every(x=>selDel.has(x.sid)))v.forEach(x=>selDel.delete(x.sid));else v.forEach(x=>selDel.add(x.sid));render();return;}
+  if(act==="delSel"){await deleteMany(Array.from(selDel));return;}
   const by=getBy();if(!by)return;
   if(act==="saveTitle"){
     const pl=plans.find(p=>p.id===sid);
@@ -815,6 +867,7 @@ $("viewBtn").onclick=async()=>{
   catch(e){viewKey=null;remoteEv=[];connDefault();m.innerHTML='<span class="err">실패: '+esc(e.message)+'</span>';}
 };
 function viewOff(){viewKey=null;remoteEv=[];connDefault();render();$("viewMsg").innerHTML='<span class="ok">전체 보기를 해제했습니다.</span>';}
+$("adminOff").onclick=()=>{adminUntil=0;adminWas=false;connDefault();render();notify("관리자 모드를 껐습니다.");};
 $("viewOff").onclick=viewOff;$("viewOff2").onclick=viewOff;
 $("verifyBtn").onclick=async()=>{const v=await verify();$("verifyMsg").innerHTML=v.bad.length?'<span class="err">이상 발견: '+v.bad.map(esc).join(", ")+'</span>':'<span class="ok">정상 — 내부 기록 '+v.n+'줄 모두 연결·내용 일치'+(v.red?' (삭제된 '+v.red+'줄은 내용 없이 연결만 확인)':'')+'</span>';};
 $("anchorBtn").onclick=async()=>{try{await navigator.clipboard.writeText($("anchor").value);$("anchorMsg").innerHTML='<span class="ok">복사했습니다.</span>';}catch(e){$("anchorMsg").innerHTML='<span class="warn">자동 복사가 막혀 있습니다. 위 글을 직접 복사하세요.</span>';}};
