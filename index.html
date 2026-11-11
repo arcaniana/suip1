@@ -235,7 +235,7 @@ const hex=b=>Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")
 const sha=async s=>hex(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)));
 
 let events=[],remoteEv=[],srvEv=[],nameEv=[],viewKey=null,DEV="",authData=null,busy=false,filterBy="",editing=null,pendingRender=false,lastSig="";
-const drafts={};const selDel=new Set();
+const drafts={};let editTimeSid=null;const selDel=new Set();
 let plans=[];try{plans=JSON.parse(localStorage.getItem("counsel_plans_v1")||"[]");}catch(e){plans=[];}
 const savePlans=()=>{try{localStorage.setItem("counsel_plans_v1",JSON.stringify(plans));}catch(e){}};
 function restorePlansFromEvents(){
@@ -473,13 +473,14 @@ function sessions(){
   allEv().filter(e=>!e.del).forEach(e=>{
     let s=m.get(e.sid);if(!s){s={sid:e.sid,memos:[],hashes:[],by:new Set(),status:"x",last:0,extra:{}};m.set(e.sid,s);}
     s.hashes.push(String(e.dev).slice(0,4)+"-"+e.seq+":"+e.hash.slice(0,10));s.last=Math.max(s.last,tkey(e));
-    if(e.by)s.by.add(e.by);
+    if(e.by&&e.type!=="retime")s.by.add(e.by);
     if(e.type==="start"){try{s.extra=e.planned?JSON.parse(e.planned):{};}catch(x){s.extra={};}s.start=e.at;s.startSrv=e.srv;s.startBy=e.by;if(e.who)s.who=e.who;if(e.topic)s.topic=e.topic;}
     else if(e.type==="end"){s.end=e.at;s.endSrv=e.srv;s.endBy=e.by;}
     else if(e.type==="memo"){s.memos.push({at:e.at,srv:e.srv,text:e.text,by:e.by});}
     else if(e.type==="retitle"){s.topic=e.text;s.retitled=true;}
+    else if(e.type==="retime"){try{const t=JSON.parse(e.text||"{}");if(t.s)s.rt={s:Number(t.s),e:t.e?Number(t.e):0};}catch(x){}}
   });
-  m.forEach(s=>{s.status=s.end&&s.start?"done":s.start?"live":"x";s.memos.sort((a,b)=>a.at-b.at);});
+  m.forEach(s=>{if(s.rt&&s.start){s.origStart=s.start;s.origEnd=s.end;s.start=s.rt.s;s.startSrv=undefined;if(s.rt.e){s.end=s.rt.e;s.endSrv=undefined;s.rtEnd=true;}s.retimed=true;}s.status=s.end&&s.start?"done":s.start?"live":"x";s.memos.sort((a,b)=>a.at-b.at);});
   return Array.from(m.values()).filter(s=>s.status!=="x");
 }
 const plannedMs=p=>p?new Date(p+":00+09:00").getTime():0;
@@ -507,6 +508,10 @@ function matchSec(s,sec){
   const t=sec.field==="대상"?s.who:sec.field==="제목"?s.topic:sec.field==="입력자"?Array.from(s.by).join(" "):((s.extra||{})[sec.field]||"");
   return String(t||"").toLowerCase().includes(v);
 }
+function timeEditor(s){
+  const v=k=>drafts[k+s.sid]!==undefined?drafts[k+s.sid]:null;
+  return `<div class="card" style="background:#f6f8fc;margin:8px 0 0"><label>시작 시각</label><input type="datetime-local" data-draft="ts:${s.sid}" value="${esc(v("ts:")!==null?v("ts:"):fmtMin(s.start).replace(" ","T"))}"><label>종료 시각 (비워 두면 계속 진행 중)</label><input type="datetime-local" data-draft="te:${s.sid}" value="${esc(v("te:")!==null?v("te:"):(s.end?fmtMin(s.end).replace(" ","T"):""))}"><div class="row" style="margin-top:8px"><button class="sm" data-act="saveTime" data-sid="${s.sid}">저장</button><button class="sm sec" data-act="cancelTime">취소</button></div><div class="k" style="margin-top:6px">원래 기록은 지워지지 않고 수정 내역으로 남습니다.</div></div>`;
+}
 function render(){
   $("hLive").style.display=$("liveList").style.display=menuCfg.hide.live?"none":"";
   const ss=sessions();
@@ -517,7 +522,7 @@ function render(){
   $("hPlan").textContent=ar(tgOpen.plan)+L("planH")+" ("+plans.length+")";
   $("hAll").style.display=menuCfg.hide.all?"none":"";$("byFilter").style.display=$("doneList").style.display=(menuCfg.hide.all||!tgOpen.all)?"none":"";
   $("hAll").textContent=ar(tgOpen.all)+(adminOn()?L("allH"):"지난 기록")+" ("+all.length+")";
-  const names=Array.from(new Set(allEv().map(e=>e.by).filter(Boolean)));
+  const names=Array.from(new Set(allEv().filter(e=>e.type!=="retime").map(e=>e.by).filter(Boolean)));
   if(filterBy&&!names.includes(filterBy))filterBy="";
   $("byFilter").innerHTML=names.length?['<span class="chip '+(filterBy?"":"on")+'" data-act="filter" data-v="">전체</span>'].concat(names.map(n=>'<span class="chip '+(filterBy===n?"on":"")+'" data-act="filter" data-v="'+esc(n)+'">'+esc(n)+'</span>')).join(""):"";
   const vis=s=>!filterBy||s.by.has(filterBy);
@@ -530,11 +535,11 @@ function render(){
     <div class="row sp"><span class="pill live">${esc(L("live"))}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(s.who)}${extraTxt(s.extra)?" · "+esc(extraTxt(s.extra)):""}</div>
-    <div class="k">시작 ${fmt(s.start)}${s.startSrv?" (서버 "+fmtHM(s.startSrv)+")":""} ${esc(diffTxt(s))}</div>
+    <div class="k">시작 ${fmt(s.start)}${s.startSrv?" (서버 "+fmtHM(s.startSrv)+")":""} ${esc(diffTxt(s))}${s.retimed?" · 관리자 수정 (원래 "+fmt(s.origStart)+")":""}</div>
     <div class="timer" data-t="${s.start}">${dur(Date.now()-s.start)}</div>
     ${memos(s)}
     <textarea data-draft="m:${s.sid}" placeholder="${esc(L("memoPh"))}" style="margin-top:8px">${esc(drafts["m:"+s.sid]||"")}</textarea>
-    <div class="row" style="margin-top:8px"><button class="sec" data-act="memo" data-sid="${s.sid}">${esc(L("memoBtn"))}</button><button class="bad" data-act="end" data-sid="${s.sid}">${esc(L("end"))}</button>${adminOn()?`<button class="sm bad" data-act="del" data-sid="${s.sid}" style="margin-left:auto">삭제</button>`:""}</div></div>`).join("")||'<div class="k" style="margin:0 2px">없음</div>';
+    ${adminOn()&&editTimeSid===s.sid?timeEditor(s):""}<div class="row" style="margin-top:8px"><button class="sec" data-act="memo" data-sid="${s.sid}">${esc(L("memoBtn"))}</button><button class="bad" data-act="end" data-sid="${s.sid}">${esc(L("end"))}</button>${adminOn()?`<button class="sm sec" data-act="editTime" data-sid="${s.sid}" style="margin-left:auto">시간 수정</button><button class="sm bad" data-act="del" data-sid="${s.sid}">삭제</button>`:""}</div></div>`).join("")||'<div class="k" style="margin:0 2px">없음</div>';
   $("planList").innerHTML=plans.filter(p=>!filterBy||p.by===filterBy).slice().sort((a,b)=>String(a.planned).localeCompare(String(b.planned))).map(p=>{const s={sid:p.id,topic:p.topic};return `<div class="card">
     <div class="row sp"><span class="pill plan">예정 ${esc(fmtP(p.planned)||"(시각 미정)")}${p.plannedEnd?" ~ "+esc(fmtP(p.plannedEnd).slice(p.planned&&p.plannedEnd.slice(0,10)===p.planned.slice(0,10)?11:0)):""}</span><span class="k">자동 시작·종료 예정</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
@@ -547,7 +552,7 @@ function render(){
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(s.who)}${extraTxt(s.extra)?" · "+esc(extraTxt(s.extra)):""}</div>
     <div class="k">${s.start?"시작 "+fmt(s.start)+(s.startSrv?" (서버 "+fmtHM(s.startSrv)+")":"")+" · 종료 "+fmt(s.end)+(s.endSrv?" (서버 "+fmtHM(s.endSrv)+")":""):""}</div>
-    ${memos(s)}${adminOn()?`<div class="row" style="margin-top:8px;justify-content:flex-end"><button class="sm bad" data-act="del" data-sid="${s.sid}">삭제</button></div>`:""}</div>`).join("")||'<div class="k" style="margin:0 2px">아직 기록이 없습니다.</div>';
+    ${s.retimed?`<div class="k warn">관리자가 시각을 수정했습니다 (원래 ${fmt(s.origStart)} ~ ${s.origEnd?fmt(s.origEnd):"종료 기록 없음"})</div>`:""}${memos(s)}${adminOn()?`${editTimeSid===s.sid?`<div class="card" style="background:#f6f8fc;margin:8px 0 0"><label>시작 시각</label><input type="datetime-local" data-draft="ts:${s.sid}" value="${esc(drafts["ts:"+s.sid]!==undefined?drafts["ts:"+s.sid]:fmtMin(s.start).replace(" ","T"))}"><label>종료 시각</label><input type="datetime-local" data-draft="te:${s.sid}" value="${esc(drafts["te:"+s.sid]!==undefined?drafts["te:"+s.sid]:fmtMin(s.end).replace(" ","T"))}"><div class="row" style="margin-top:8px"><button class="sm" data-act="saveTime" data-sid="${s.sid}">저장</button><button class="sm sec" data-act="cancelTime">취소</button></div><div class="k" style="margin-top:6px">원래 기록은 지워지지 않고 수정 내역으로 남습니다.</div></div>`:""}<div class="row" style="margin-top:8px;justify-content:flex-end"><button class="sm sec" data-act="editTime" data-sid="${s.sid}">시간 수정</button><button class="sm bad" data-act="del" data-sid="${s.sid}">삭제</button></div>`:""}</div>`).join("")||'<div class="k" style="margin:0 2px">아직 기록이 없습니다.</div>';
   const mini=s=>`<div class="card"><div class="row sp"><span class="pill ${s.status==="live"?"live":"done"}">${s.status==="live"?esc(L("live")):esc(L("done"))+" "+dur(s.end-s.start)}</span><span class="k">입력자 ${esc(Array.from(s.by).join(", "))}</span></div>
     <div style="margin-top:4px"><span class="ttl">${esc(s.topic||(formCfg.hide.topic?"기록":"(제목 없음)"))}</span></div>
     <div class="k">${esc(s.who)}${extraTxt(s.extra)?" · "+esc(extraTxt(s.extra)):""}</div>
@@ -762,6 +767,21 @@ async function deleteSession(sid){
     connDefault();render();
   }catch(e){notify("삭제 중 오류: "+e.message);connDefault();render();}
 }
+// 관리자가 시각을 고친다. 원래 기록은 그대로 두고 "수정 내역"을 새 기록으로 덧붙인다. (기록 흐름·해시가 깨지지 않음)
+async function saveTime(sid){
+  if(!adminOn()){notify("관리자 비밀번호를 다시 입력하세요. (관리 메뉴)");return;}
+  const x=sessions().find(q=>q.sid===sid);if(!x)return;const live=!x.end;
+  const a=drafts["ts:"+sid]!==undefined?drafts["ts:"+sid]:fmtMin(x.start).replace(" ","T");
+  const b=drafts["te:"+sid]!==undefined?drafts["te:"+sid]:(x.end?fmtMin(x.end).replace(" ","T"):"");
+  const ms=v=>/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v||"")?new Date(v.slice(0,16)+":00+09:00").getTime():NaN;
+  const S=ms(a),E=b?ms(b):0;
+  if(!(S>0)||(b&&!(E>0))||(!live&&!E)){notify(live?"시작 시각을 입력하세요.":"시작·종료 시각을 모두 입력하세요.");return;}
+  if(E&&E<=S){notify("종료는 시작보다 늦어야 합니다.");return;}
+  if(Math.floor(S/60000)===Math.floor(x.start/60000)&&(live?!E:Math.floor(E/60000)===Math.floor(x.end/60000))){editTimeSid=null;render();return;}
+  if(!confirm("시각을 수정할까요?\n"+fmtMin(S)+" ~ "+(E?fmtMin(E):"(계속 진행 중)")+"\n원래 시각은 수정 내역으로 남고, PDF에는 † 표시와 함께 원래 시각이 표시됩니다."))return;
+  adminUntil=Date.now()+10*60000;
+  if(await append({type:"retime",sid,by:"관리자",text:JSON.stringify({s:S,e:E||0})})){editTimeSid=null;delete drafts["ts:"+sid];delete drafts["te:"+sid];render();notify("시간을 수정했습니다.\n원래 시각은 수정 내역으로 남습니다.");}
+}
 async function deleteMany(sids){
   if(!adminOn()){notify("관리자 비밀번호를 다시 입력하세요. (관리 메뉴)");return;}
   if(!sids.length)return;
@@ -782,6 +802,9 @@ $("main").addEventListener("click",async ev=>{
   if(act==="editTitle"){editing=sid;render();return;}
   if(act==="cancelEdit"){delete drafts["t:"+editing];editing=null;render();return;}
   if(act==="del"){await deleteSession(sid);return;}
+  if(act==="editTime"){editTimeSid=sid;delete drafts["ts:"+sid];delete drafts["te:"+sid];render();return;}
+  if(act==="cancelTime"){editTimeSid=null;render();return;}
+  if(act==="saveTime"){await saveTime(sid);return;}
   if(act==="sel"){if(t.checked)selDel.add(sid);else selDel.delete(sid);render();return;}
   if(act==="selAll"){const v=sessions().filter(x=>x.status==="done"&&(!filterBy||x.by.has(filterBy)));if(v.length&&v.every(x=>selDel.has(x.sid)))v.forEach(x=>selDel.delete(x.sid));else v.forEach(x=>selDel.add(x.sid));render();return;}
   if(act==="delSel"){await deleteMany(Array.from(selDel));return;}
@@ -997,7 +1020,7 @@ function pdfTable(ss){
     if(sel("dur"))cols.push(["dur","소요 시간"]);
     const tm=o=>o.ms?esc(fmtMin(o.ms))+o.mark:"-";
     const cell=(c,s,i)=>{
-      const st=T(s.startSrv,s.start),en=s.end?T(s.endSrv,s.end):null;
+      const st=s.retimed?{ms:s.start,mark:"†"}:T(s.startSrv,s.start),en=s.end?(s.rtEnd?{ms:s.end,mark:"†"}:T(s.endSrv,s.end)):null;
       switch(c){
         case "no":return i+1;
         case "topic":return esc(s.topic)||"-";
@@ -1009,16 +1032,17 @@ function pdfTable(ss){
         default:return esc((s.extra||{})[c.slice(2)]||"-");
       }
     };
-    const anyDev=ss.some(s=>!s.startSrv||(s.end&&!s.endSrv));
+    const anyDev=ss.some(s=>!s.retimed&&(!s.startSrv||(s.end&&!s.endSrv))),anyRt=ss.some(s=>s.retimed);
     const span=cols.length;
     const rowsHtml=ss.map((s,i)=>{
       let h=`<tr>${cols.map(c=>`<td>${cell(c[0],s,i)}</td>`).join("")}</tr>`;
       if(sel("memo")&&s.memos.length)h+=`<tr class="sub"><td></td><td colspan="${span-1}">${s.memos.map(m=>`<div>메모 ${esc(fmtHM(m.srv||m.at))} (${esc(m.by)}) — ${esc(m.text)}</div>`).join("")}</td></tr>`;
+      if(s.retimed)h+=`<tr class="sub"><td></td><td colspan="${span-1}">† 관리자 수정 — 원래 시각 ${esc(fmtMin(s.origStart))} ~ ${s.origEnd?esc(fmtMin(s.origEnd)):"(종료 기록 없음)"}</td></tr>`;
       if(pdfSel.hash===true)h+=`<tr class="sub"><td></td><td colspan="${span-1}" class="hs">기록 번호(해시 앞 10자) ${s.hashes.map(x=>esc(sx(x))).join(" / ")}</td></tr>`;
       return h;
     });
     const head=`<tr>${cols.map(c=>`<th>${esc(c[1])}</th>`).join("")}</tr>`;
-  return {head,rowsHtml,anyDev};
+  return {head,rowsHtml,anyDev,anyRt};
 }
 function drawPreview(){
   const box=$("pdfPreview");
@@ -1026,7 +1050,7 @@ function drawPreview(){
   const ss=pdfRange();
   if(!ss.length){box.innerHTML="";return;}
   const t=pdfTable(ss);
-  box.innerHTML='<div class="k" style="margin:8px 0 4px">미리보기 (PDF에 들어갈 내용)</div><div class="pvw"><table class="pv"><thead>'+t.head+'</thead><tbody>'+t.rowsHtml.join("")+'</tbody></table></div>'+(t.anyDev?'<div class="k">* 서버 시각이 없어 기기 시각으로 표시</div>':"");
+  box.innerHTML='<div class="k" style="margin:8px 0 4px">미리보기 (PDF에 들어갈 내용)</div><div class="pvw"><table class="pv"><thead>'+t.head+'</thead><tbody>'+t.rowsHtml.join("")+'</tbody></table></div>'+(t.anyDev?'<div class="k">* 서버 시각이 없어 기기 시각으로 표시</div>':"")+(t.anyRt?'<div class="k">† 관리자가 수정한 시각 (원래 시각은 행 아래에 표시)</div>':"");
 }
 $("pdfLoad").onclick=async()=>{
   const m=$("pdfInfo");m.textContent="가져오는 중…";
@@ -1050,7 +1074,7 @@ $("pdfBtn").onclick=async()=>{
     const v=await verify();
     if(document.fonts&&document.fonts.ready)await document.fonts.ready;
     const {jsPDF}=window.jspdf;const pdf=new jsPDF({unit:"mm",format:"a4"});const box=$("report");
-    const {head,rowsHtml,anyDev}=pdfTable(ss);
+    const {head,rowsHtml,anyDev,anyRt}=pdfTable(ss);
     const LIMIT=1123-60-56;
     const pages=[];let cur=null,tb=null;
     const mk=()=>{const d=document.createElement("div");d.className="page lst";d.innerHTML=`<h2>${esc(L("pdfTitle"))}</h2><div class="meta">출력 시각 ${esc(fmt(Date.now()))} · 총 ${ss.length}건</div><table><thead>${head}</thead><tbody></tbody></table>`;box.innerHTML="";box.appendChild(d);return d;};
@@ -1067,7 +1091,7 @@ $("pdfBtn").onclick=async()=>{
       }
     }
     done.push(cur);
-    const foot=(p)=>`<div class="foot">${p} / ${done.length} 쪽 · 체인 검사: ${v.bad.length?"이상 있음":"정상"} · 전체 최종 해시 ${esc(v.head)}<br>※ 시각은 Google 서버가 기록을 받은 시각 기준입니다${anyDev?" (*표시는 서버 시각이 없어 기기 시각으로 표시)":""}. 각 기록은 이전 기록의 해시와 연결되어 사후 수정이 감지됩니다.</div>`;
+    const foot=(p)=>`<div class="foot">${p} / ${done.length} 쪽 · 체인 검사: ${v.bad.length?"이상 있음":"정상"} · 전체 최종 해시 ${esc(v.head)}<br>※ 시각은 Google 서버가 기록을 받은 시각 기준입니다${anyDev?" (*표시는 서버 시각이 없어 기기 시각으로 표시)":""}${anyRt?" (†표시는 관리자가 수정한 시각이며 원래 시각은 각 행 아래에 표시)":""}. 각 기록은 이전 기록의 해시와 연결되어 사후 수정이 감지됩니다.</div>`;
     const imgs=[];
     for(let p=0;p<done.length;p++){
       const pg=done[p];box.innerHTML="";box.appendChild(pg);
