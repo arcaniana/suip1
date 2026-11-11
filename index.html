@@ -109,7 +109,7 @@ input,select,textarea{font-size:16px}
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px">
         <label data-l="by" for="by" style="flex:0 0 auto;margin:0;font-size:16px;font-weight:700;color:var(--ink);white-space:nowrap">입력자 (내 이름)</label>
-        <input id="by" style="flex:1 1 auto;min-width:0;margin:0">
+        <input id="by" style="flex:1 1 auto;min-width:0;margin:0"><button id="byOk" style="flex:0 0 auto">확인</button>
       </div>
     </div>
 
@@ -234,7 +234,7 @@ const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",
 const hex=b=>Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join("");
 const sha=async s=>hex(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)));
 
-let events=[],remoteEv=[],viewKey=null,DEV="",authData=null,busy=false,filterBy="",editing=null,pendingRender=false,lastSig="";
+let events=[],remoteEv=[],srvEv=[],nameEv=[],viewKey=null,DEV="",authData=null,busy=false,filterBy="",editing=null,pendingRender=false,lastSig="";
 const drafts={};const selDel=new Set();
 let plans=[];try{plans=JSON.parse(localStorage.getItem("counsel_plans_v1")||"[]");}catch(e){plans=[];}
 const savePlans=()=>{try{localStorage.setItem("counsel_plans_v1",JSON.stringify(plans));}catch(e){}};
@@ -286,9 +286,47 @@ async function remote(action,payload){
 }
 function setConn(h){$("conn").innerHTML=h;}
 const tkey=e=>e.srv||e.at;
+const SRVKEY="counsel_srvev_v1";
+try{srvEv=JSON.parse(localStorage.getItem(SRVKEY)||"[]");if(!Array.isArray(srvEv))srvEv=[];}catch(e){srvEv=[];}
+const saveSrv=()=>{try{localStorage.setItem(SRVKEY,JSON.stringify(srvEv));}catch(e){}};
+// 서버가 자동으로 시작·종료한 내 예약의 기록을 가져온다. (이 기기가 예약한 항목만 요청)
+async function fetchSrv(){
+  if(!getCfg())return;
+  const cancelled=new Set(),humanStarted=new Set(),ended=new Set(srvEv.filter(e=>e.type==="end"&&!e.del).map(e=>e.sid));
+  events.forEach(e=>{if(e.type==="cancelPlan")cancelled.add(e.sid);else if(e.type==="start")humanStarted.add(e.sid);else if(e.type==="end")ended.add(e.sid);});
+  const sids=Array.from(new Set(events.filter(e=>e.type==="plan"&&!e.del&&!cancelled.has(e.sid)&&!humanStarted.has(e.sid)&&!ended.has(e.sid)).map(e=>e.sid))).slice(0,300);
+  if(!sids.length)return;
+  const j=await remote("serverevents",{sids});
+  let changed=false;
+  (j.events||[]).forEach(n=>{
+    n.part=true;const k=n.dev+":"+n.seq,i=srvEv.findIndex(o=>o.dev+":"+o.seq===k);
+    if(i<0){srvEv.push(n);changed=true;}else if(n.del&&!srvEv[i].del){srvEv[i]=n;changed=true;}
+  });
+  if(changed){saveSrv();}
+}
+const nmz=v=>String(v==null?"":v).replace(/\s+/g,"");
+// 입력자 이름으로 서버에서 그 사람의 기록(다른 기기에서 입력한 것 포함)과 예정을 가져온다.
+async function fetchMine(){
+  if(!getCfg())return false;
+  const by=$("by").value.trim();
+  if(!by){nameEv=[];return false;}
+  const j=await remote("mine",{by});
+  nameEv=(j.events||[]).map(e=>e.dev===DEV?e:Object.assign({},e,{part:true}));
+  const m=new Map();
+  nameEv.filter(e=>!e.del).sort((a,b)=>tkey(a)-tkey(b)||a.seq-b.seq).forEach(e=>{
+    if(e.type==="plan"){try{const p=JSON.parse(e.planned||"{}");m.set(e.sid,Object.assign({id:e.sid,by:e.by},p));}catch(x){}}
+    else if(e.type==="cancelPlan"||e.type==="start"||e.type==="end")m.delete(e.sid);
+  });
+  let ch=false;
+  const kept=plans.filter(p=>!p.fx||(nmz(p.by)===nmz(by)&&m.has(p.id)));
+  if(kept.length!==plans.length){plans=kept;ch=true;}
+  m.forEach((p,id)=>{if(!plans.some(x=>x.id===id)){plans.push(Object.assign({fx:true},p));ch=true;}});
+  if(ch)savePlans();
+  return true;
+}
 function allEv(){
   const m=new Map();
-  events.concat(remoteEv).forEach(e=>{const k=e.dev+":"+e.seq,o=m.get(k);if(!o||(e.del&&!o.del)||(!o.del&&!o.srv&&e.srv))m.set(k,e);});
+  events.concat(remoteEv.length?remoteEv:srvEv.concat(nameEv)).forEach(e=>{const k=e.dev+":"+e.seq,o=m.get(k);if(!o||(e.del&&!o.del)||(!o.del&&!o.srv&&e.srv))m.set(k,e);});
   return Array.from(m.values()).sort((a,b)=>tkey(a)-tkey(b)||String(a.dev).localeCompare(String(b.dev))||a.seq-b.seq);
 }
 const pendingN=()=>getCfg()?events.filter(e=>!e.srv).length:0;
@@ -322,6 +360,8 @@ async function sync(quiet){
       if(srvMenu&&typeof srvMenu==="object"){const nm={hide:srvMenu.hide||{},secs:srvMenu.secs||[]};if(JSON.stringify(nm)!==JSON.stringify(menuCfg)){menuCfg=nm;lsSet(MENUKEY,menuCfg);softRender();}}
       n.hide=n.hide||{};n.hide.who=true;n.hide.topic=true;if(JSON.stringify(n)!==JSON.stringify(formCfg)){formCfg=n;lsSet(FORMKEY,formCfg);buildForm(true);}}}catch(e){}}
   if(getCfg()){try{const j=await remote("planids");if(j.ok&&Array.isArray(j.ids)){const keep=new Set(j.ids);plans=plans.filter(p=>keep.has(p.id));savePlans();}}catch(e){}}
+  if(getCfg()){try{await fetchSrv();}catch(e){}}
+  if(getCfg()){try{await fetchMine();}catch(e){}}
   if(viewKey){try{await loadAll();}catch(e){lastErr="불러오기 실패: "+e.message;}}
   connDefault();
   if(allEv().length!==sig0||!quiet)softRender();
@@ -411,7 +451,7 @@ const planRunning=new Set();
 async function runDuePlans(){ return; }
 
 async function verify(){
-  const list=allEv(),g={},bad=[],heads=[];let red=0;
+  const list=allEv().filter(e=>!e.part),g={},bad=[],heads=[];let red=0;
   list.forEach(e=>{(g[e.dev||"?"]=g[e.dev||"?"]||[]).push(e);});
   for(const dev of Object.keys(g).sort()){
     const arr=g[dev].sort((a,b)=>a.seq-b.seq);let prev="GENESIS";
@@ -671,6 +711,18 @@ $("plannedList").addEventListener("input",chainTimes);$("plannedList").addEventL
 $("addTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .slot"),last=a[a.length-1],p=last.querySelectorAll(".pl");if(!p[0].value||!p[1].value){notify("앞 칸의 시작·종료 시각을 모두 입력해야 칸을 추가할 수 있습니다.");return;}const n=mkSlot(),ed=p[1].value.slice(0,10);n.querySelectorAll(".pl").forEach(x=>x.forceDate(ed));$("plannedList").appendChild(n);chainTimes();n.querySelector("input").focus();};
 $("delTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .slot");if(a.length>1)a[a.length-1].remove();};
 $("by").addEventListener("change",()=>localStorage.setItem(BYKEY,$("by").value.trim()));
+$("by").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("byOk").click();}});
+$("byOk").onclick=async()=>{
+  const by=getBy();if(!by)return;
+  if(!getCfg()){notify(by+"님으로 입력합니다.\n시트에 연결되어 있지 않아 이 기기에 입력한 기록만 보입니다.");render();return;}
+  $("byOk").disabled=true;
+  try{
+    await fetchMine();render();
+    const ss=sessions().filter(x=>Array.from(x.by).some(n=>nmz(n)===nmz(by)));
+    notify(by+"님의 진행 상황을 불러왔습니다.\n진행 중 "+ss.filter(x=>x.status==="live").length+"건 · 예정 "+plans.filter(p=>nmz(p.by)===nmz(by)).length+"건");
+  }catch(e){notify("불러오지 못했습니다: "+(e.message||e));}
+  $("byOk").disabled=false;
+};
 $("planBtn").onclick=async()=>{
   const by=getBy();if(!by)return;const f=formVals();
   const ts=slots();if(!ts.length||ts.some(x=>!x.s||!x.e)){notify("예정의 시작과 종료를 모두 입력하세요.");return;}
@@ -696,7 +748,7 @@ $("startBtn").onclick=async()=>{
 const sess=sid=>sessions().find(s=>s.sid===sid);
 function redactLocal(sid){
   const f=e=>{if(e.sid===sid&&!e.del){e.who="";e.topic="";e.text="";e.by="";e.planned="";e.del=Date.now();}};
-  events.forEach(f);remoteEv.forEach(f);save();
+  events.forEach(f);remoteEv.forEach(f);srvEv.forEach(f);saveSrv();save();
 }
 async function deleteSession(sid){
   if(!adminOn()){notify("관리자 비밀번호를 다시 입력하세요. (관리 메뉴)");return;}
