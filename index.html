@@ -23,6 +23,10 @@
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;font-size:15px;line-height:1.5}
 .wrap{max-width:760px;margin:0 auto;padding:16px 14px calc(60px + env(safe-area-inset-bottom))}
 h1{font-size:40px;line-height:1.25;text-align:center;margin:6px 0 10px;user-select:none;cursor:default}
+#title{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(135deg,#1b3a8a 0%,#2f62e0 52%,#52b0ff 100%);color:#fff;border:1.5px solid rgba(255,255,255,.6);border-radius:24px;padding:24px 16px;margin:8px 4px 18px;font-weight:800;letter-spacing:.08em;text-shadow:0 2px 8px rgba(8,28,92,.4);box-shadow:0 12px 26px rgba(27,58,138,.30),0 0 0 5px #e3ecff;-webkit-tap-highlight-color:transparent}
+#title::before,#title::after{content:"";position:absolute;border-radius:50%;z-index:-1;pointer-events:none}
+#title::before{width:150px;height:150px;right:-38px;top:-62px;background:radial-gradient(circle at 35% 35%,rgba(255,255,255,.32),rgba(255,255,255,.06))}
+#title::after{width:120px;height:120px;left:-30px;bottom:-64px;background:radial-gradient(circle at 60% 40%,rgba(255,255,255,.26),rgba(255,255,255,.04))}
 h3.tg{cursor:pointer;user-select:none}h3{font-size:14px;margin:16px 2px 6px;color:var(--mute);font-weight:500}
 .sub{color:var(--mute);font-size:13px;margin-bottom:12px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px}
