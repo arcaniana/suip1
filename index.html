@@ -613,6 +613,7 @@ function mkSlot(){
 /* ---------- 이미 예약된 시간 중복 방지 ---------- */
 // 이 기기의 예정 + (전체 보기 중이면) 다른 입력자의 예정을 모두 "예약된 시간"으로 본다.
 function busyList(){
+  const nm=v=>String(v||"").replace(/\s+/g,""),me=nm($("by").value);
   const out=plans.filter(p=>p.planned&&p.plannedEnd).map(p=>({id:p.id,s:p.planned,e:p.plannedEnd,by:p.by,topic:p.topic}));
   if(viewKey&&remoteEv.length){
     const have=new Set(out.map(x=>x.id)),map=new Map();
@@ -622,14 +623,23 @@ function busyList(){
     });
     map.forEach((v,k)=>{if(!have.has(k))out.push(v);});
   }
-  return out;
+  // 내가 시작한 진행 중 기록도 예약된 시간으로 본다. (종료 예정이 있으면 그 시각까지, 없으면 지금 이 순간만)
+  const evs=allEv(),nowMin=fmtMin(Date.now()).replace(" ","T"),nextMin=fmtMin(Date.now()+60000).replace(" ","T");
+  sessions().filter(x=>x.status==="live"&&nm(x.startBy)===me).forEach(x=>{
+    let end=nextMin;
+    const pe=evs.find(e=>e.sid===x.sid&&e.type==="plan");
+    if(pe){try{const pp=JSON.parse(pe.planned||"{}");if(pp.plannedEnd&&pp.plannedEnd>nowMin)end=pp.plannedEnd;}catch(err){}}
+    out.push({id:x.sid,s:fmtMin(x.start).replace(" ","T"),e:end,by:x.startBy,topic:x.topic,live:true});
+  });
+  // 입력자가 다르면 겹쳐도 상관없다.
+  return out.filter(b=>nm(b.by)===me);
 }
 // s·e 중 하나만 있으면 그 시각이 예약 구간 안에 들어가는지, 둘 다 있으면 구간이 겹치는지 검사한다. (끝과 시작이 딱 맞닿는 것은 허용)
 function findConflict(s,e){
   return busyList().find(b=>s&&e?(s<b.e&&b.s<e):s?(b.s<=s&&s<b.e):e?(b.s<e&&e<=b.e):false)||null;
 }
 function conflictMsg(b){
-  return "이미 예약된 시간입니다.\n"+fmtP(b.s)+" ~ "+fmtP(b.e).slice(b.s.slice(0,10)===b.e.slice(0,10)?11:0)+(b.by?" ("+b.by+")":"")+"\n다른 시간을 선택해 주세요.";
+  return "이미 예약된 시간입니다.\n"+fmtP(b.s)+" ~ "+fmtP(b.e).slice(b.s.slice(0,10)===b.e.slice(0,10)?11:0)+(b.live?" (진행 중)":" (예약)")+"\n다른 시간을 선택해 주세요.";
 }
 const slots=()=>Array.from(document.querySelectorAll("#plannedList .slot")).map(d=>{const p=d.querySelectorAll(".pl");return{s:p[0].value,e:p[1].value};}).filter(x=>x.s||x.e);
 function formVals(){return{who:$("who").value.trim(),topic:$("topic").value.trim(),planned:""};}
