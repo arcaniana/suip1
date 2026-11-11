@@ -142,7 +142,7 @@ input,select,textarea{font-size:16px}
   <div id="admin" class="hidden">
     <div class="card">
       <b>화면 편집</b>
-      <div class="k" style="margin:4px 0 8px">메인 화면과 같은 모양입니다. 글자를 바로 고치면 자동 저장됩니다. (이름은 이 기기에만, 입력칸 구성은 시트에 연결되고 관리자로 들어와 있으면 모든 기기에 반영됩니다.)</div>
+      <div class="k" style="margin:4px 0 8px">메인 화면과 같은 모양입니다. 글자를 바로 고치면 자동 저장됩니다. (시트에 연결되고 관리자로 들어와 있으면 이름과 입력칸 구성이 모든 기기에 반영됩니다.)</div>
       <div id="mock"></div>
       <label style="display:flex;gap:8px;align-items:center;margin:12px 0 0;font-size:14px;color:var(--ink)"><input type="checkbox" id="secOpt" style="width:auto">기록 시각을 초까지 표시 (끄면 분까지만 표시)</label>
       <div class="k">표시만 바뀝니다. 기록 자체에는 서버가 받은 정확한 시각이 그대로 저장됩니다.</div>
@@ -151,7 +151,7 @@ input,select,textarea{font-size:16px}
     </div>
     <div class="card">
       <b>화면 구성</b>
-      <div class="k" style="margin:4px 0 6px">메인 화면의 구역을 보이거나 숨기고, 조건에 맞는 기록만 모아 보는 구역을 새로 만듭니다. 이 기기에만 적용됩니다.</div>
+      <div class="k" style="margin:4px 0 6px">메인 화면의 구역을 보이거나 숨기고, 조건에 맞는 기록만 모아 보는 구역을 새로 만듭니다. 시트에 연결되고 관리자로 들어와 있으면 모든 기기에 반영됩니다.</div>
       <div id="menuEditor"></div>
     </div>
     <div class="card">
@@ -317,7 +317,10 @@ async function sync(quiet){
   const sig0=allEv().length;
   try{await flush();}catch(e){}
   if(getCfg()){try{const j=await remote("deleted",{dev:DEV});(j.sids||[]).forEach(redactLocal);}catch(e){}}
-  if(getCfg()){try{const j=await remote("getcfg");if(j.cfg){const n=Object.assign({who:[],topic:[],fields:[],hide:{}},j.cfg);n.hide=n.hide||{};n.hide.who=true;n.hide.topic=true;if(JSON.stringify(n)!==JSON.stringify(formCfg)){formCfg=n;lsSet(FORMKEY,formCfg);buildForm(true);}}}catch(e){}}
+  if(getCfg()){try{const j=await remote("getcfg");if(j.cfg){const n=Object.assign({who:[],topic:[],fields:[],hide:{}},j.cfg);const srvLb=n.labels,srvMenu=n.menu;delete n.labels;delete n.menu;
+      if(srvLb&&typeof srvLb==="object"&&JSON.stringify(srvLb)!==(localStorage.getItem("counsel_labels_v1")||"{}")){try{localStorage.setItem("counsel_labels_v1",JSON.stringify(srvLb));}catch(x){}LB=Object.assign({},DEFLB,srvLb);applyLabels();buildPdfOpts();softRender();}
+      if(srvMenu&&typeof srvMenu==="object"){const nm={hide:srvMenu.hide||{},secs:srvMenu.secs||[]};if(JSON.stringify(nm)!==JSON.stringify(menuCfg)){menuCfg=nm;lsSet(MENUKEY,menuCfg);softRender();}}
+      n.hide=n.hide||{};n.hide.who=true;n.hide.topic=true;if(JSON.stringify(n)!==JSON.stringify(formCfg)){formCfg=n;lsSet(FORMKEY,formCfg);buildForm(true);}}}catch(e){}}
   if(getCfg()){try{const j=await remote("planids");if(j.ok&&Array.isArray(j.ids)){const keep=new Set(j.ids);plans=plans.filter(p=>keep.has(p.id));savePlans();}}catch(e){}}
   if(viewKey){try{await loadAll();}catch(e){lastErr="불러오기 실패: "+e.message;}}
   connDefault();
@@ -761,12 +764,16 @@ function download(name,blob){const u=URL.createObjectURL(blob),a=document.create
 let mockT=null;
 function saveFormCfg(){
   lsSet(FORMKEY,formCfg);buildForm();buildPdfOpts();buildMenuEditor();render();
+  pushCfg();
+}
+function cfgPayload(){let lb={};try{lb=JSON.parse(localStorage.getItem("counsel_labels_v1")||"{}");}catch(e){}return Object.assign({},formCfg,{labels:lb,menu:menuCfg});}
+function pushCfg(){
   clearTimeout(mockT);
   mockT=setTimeout(async()=>{
     const m=$("lbMsg");
     if(getCfg()){
       if(!viewKey){m.innerHTML='<span class="warn">이 기기에는 저장했습니다. 다른 분들께 반영하려면 관리자(전체 보기)로 들어온 상태에서 고쳐 주세요.</span>';return;}
-      try{await remote("setcfg",{key:viewKey,cfg:formCfg});m.innerHTML='<span class="ok">자동 저장됨 · 다른 기기에는 15초 안에 반영됩니다.</span>';}
+      try{await remote("setcfg",{key:viewKey,cfg:cfgPayload()});m.innerHTML='<span class="ok">자동 저장됨 · 다른 기기에는 15초 안에 반영됩니다.</span>';}
       catch(e){m.innerHTML='<span class="err">서버 저장 실패: '+esc(e.message)+'</span>';}
     }else m.innerHTML='<span class="ok">자동 저장됨</span>';
   },700);
@@ -774,7 +781,7 @@ function saveFormCfg(){
 function saveLabels(){
   const o={};document.querySelectorAll("#mock [data-lk]").forEach(i=>{const v=i.value.trim();if(v&&v!==DEFLB[i.dataset.lk])o[i.dataset.lk]=v;});
   localStorage.setItem("counsel_labels_v1",JSON.stringify(o));LB=Object.assign({},DEFLB,o);applyLabels();buildPdfOpts();render();
-  $("lbMsg").innerHTML='<span class="ok">자동 저장됨</span>';
+  pushCfg();
 }
 $("secOpt").onchange=()=>{showSec=$("secOpt").checked;try{localStorage.setItem("counsel_sec_v1",showSec?"1":"0");}catch(e){}render();};
 function buildMock(){
@@ -832,14 +839,14 @@ function buildMenuEditor(){
   <div class="row g" style="margin-top:4px"><input id="msName" placeholder="구역 이름"><select id="msField">${fields.map(f=>`<option>${esc(f)}</option>`).join("")}</select><input id="msVal" placeholder="포함할 글자"></div>
   <div class="row" style="margin-top:8px"><button class="sm sec" id="msAdd">＋ 구역 추가</button></div></div>`;
 }
-$("menuEditor").addEventListener("change",e=>{const c=e.target.closest("[data-mh]");if(!c)return;menuCfg.hide[c.dataset.mh]=!c.checked;lsSet(MENUKEY,menuCfg);render();});
+$("menuEditor").addEventListener("change",e=>{const c=e.target.closest("[data-mh]");if(!c)return;menuCfg.hide[c.dataset.mh]=!c.checked;lsSet(MENUKEY,menuCfg);render();pushCfg();});
 $("menuEditor").addEventListener("click",e=>{
   const d=e.target.closest("[data-msdel]");
-  if(d){menuCfg.secs.splice(Number(d.dataset.msdel),1);lsSet(MENUKEY,menuCfg);buildMenuEditor();render();return;}
+  if(d){menuCfg.secs.splice(Number(d.dataset.msdel),1);lsSet(MENUKEY,menuCfg);buildMenuEditor();render();pushCfg();return;}
   if(e.target.id==="msAdd"){
     const name=$("msName").value.trim(),field=$("msField").value,value=$("msVal").value.trim();
     if(!name||!value){notify("구역 이름과 포함할 글자를 입력하세요.");return;}
-    menuCfg.secs.push({id:Date.now().toString(36),name,field,value});lsSet(MENUKEY,menuCfg);buildMenuEditor();render();
+    menuCfg.secs.push({id:Date.now().toString(36),name,field,value});lsSet(MENUKEY,menuCfg);buildMenuEditor();render();pushCfg();
   }
 });
 function buildPdfOpts(){
@@ -855,7 +862,7 @@ async function openAdmin(){
   $("anchor").value="[기록 무결성 요약]\n기준시각: "+fmt(Date.now())+"\n내부 기록 줄 수: "+v.n+" / 항목 수: "+sessions().length+"\n최종 해시: "+v.head+"\n체인 검사: "+(v.bad.length?"이상 있음":"정상");
 }
 $("closeAdmin").onclick=()=>{$("admin").classList.add("hidden");$("main").classList.remove("hidden");$("fab").classList.remove("hidden");connDefault();render();};
-$("lbReset").onclick=()=>{localStorage.removeItem("counsel_labels_v1");localStorage.removeItem("counsel_title_v1");LB=Object.assign({},DEFLB);applyLabels();buildMock();buildPdfOpts();render();$("lbMsg").innerHTML='<span class="ok">기본값으로 되돌렸습니다.</span>';};
+$("lbReset").onclick=()=>{localStorage.removeItem("counsel_labels_v1");localStorage.removeItem("counsel_title_v1");LB=Object.assign({},DEFLB);applyLabels();buildMock();buildPdfOpts();render();pushCfg();};
 $("cfgSave").onclick=async()=>{
   const url=$("cfgUrl").value.trim(),m=$("cfgMsg");
   if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){m.innerHTML='<span class="err">주소(…/exec)를 확인하세요.</span>';return;}
@@ -911,7 +918,9 @@ function closePdf(){
 }
 $("pdfClose").onclick=closePdf;
 $("pdfMenu").onclick=()=>{
-  if(adminOn()&&viewKey){pdfKey=viewKey;openPdf();return;}
+  // 관리자 비밀번호를 이미 입력했다면(서버 연결 시 viewKey, 미연결 시 관리자 모드) 다시 묻지 않는다.
+  if(viewKey){pdfKey=viewKey;openPdf();return;}
+  if(!getCfg()&&adminOn()){openPdf();return;}
   gate("pdf");
 };
 const pdfRange=()=>{
