@@ -113,6 +113,7 @@ input,select,textarea{font-size:16px}
       </div>
     </div>
 
+    <div id="afterId" class="hidden">
     <button id="newTop" style="width:100%;margin-bottom:10px;padding:12px" data-l="newTop">＋ 새 기록 / 시간 추가</button>
     <div class="card" id="newCard">
       <div id="newTitleB" data-l="newTitle" style="user-select:none;-webkit-user-select:none;font-size:22px;font-weight:800;color:var(--accent);background:#eef3ff;border:1px solid #cfd8ea;border-radius:10px;padding:14px 12px;margin-bottom:12px;text-align:center;letter-spacing:1px">새 기록</div><button class="sm sec" id="newClose">닫기</button>
@@ -136,6 +137,8 @@ input,select,textarea{font-size:16px}
     <div class="fl" id="byFilter"></div>
     <div id="doneList"></div>
     <div id="customSecs"></div>
+    </div>
+    <div id="gateMsg" class="k" style="margin:14px 2px;text-align:center">이름을 입력하고 <b>확인</b>을 누르면 내 진행 상황이 나타납니다.</div>
     <button class="sec" id="pdfMenu" data-l="pdfMenu" style="width:100%;margin:18px 0 10px;padding:10px">PDF 출력</button>
   </div>
 
@@ -234,7 +237,7 @@ const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",
 const hex=b=>Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join("");
 const sha=async s=>hex(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)));
 
-let events=[],remoteEv=[],srvEv=[],nameEv=[],viewKey=null,DEV="",authData=null,busy=false,filterBy="",editing=null,pendingRender=false,lastSig="";
+let ident="",events=[],remoteEv=[],srvEv=[],nameEv=[],viewKey=null,DEV="",authData=null,busy=false,filterBy="",editing=null,pendingRender=false,lastSig="";
 const drafts={};let editTimeSid=null;const selDel=new Set();
 let plans=[];try{plans=JSON.parse(localStorage.getItem("counsel_plans_v1")||"[]");}catch(e){plans=[];}
 const savePlans=()=>{try{localStorage.setItem("counsel_plans_v1",JSON.stringify(plans));}catch(e){}};
@@ -308,7 +311,7 @@ const nmz=v=>String(v==null?"":v).replace(/\s+/g,"");
 // 입력자 이름으로 서버에서 그 사람의 기록(다른 기기에서 입력한 것 포함)과 예정을 가져온다.
 async function fetchMine(){
   if(!getCfg())return false;
-  const by=$("by").value.trim();
+  const by=ident;
   if(!by){nameEv=[];return false;}
   const j=await remote("mine",{by});
   nameEv=(j.events||[]).map(e=>e.dev===DEV?e:Object.assign({},e,{part:true}));
@@ -384,7 +387,7 @@ function boot(){
   setupManifest();
   DEV=localStorage.getItem(DEVKEY)||(()=>{const v=hex(crypto.getRandomValues(new Uint8Array(6)));localStorage.setItem(DEVKEY,v);return v;})();
   applyLabels();buildForm();
-  $("by").value=localStorage.getItem(BYKEY)||"";
+  $("by").value="";
   $("app").classList.remove("hidden");render();connDefault();sync();
   setInterval(()=>{if(!document.hidden)sync(true);},15000);
   setInterval(tick,1000);
@@ -513,19 +516,23 @@ function timeEditor(s){
   return `<div class="card" style="background:#f6f8fc;margin:8px 0 0"><label>시작 시각</label><input type="datetime-local" data-draft="ts:${s.sid}" value="${esc(v("ts:")!==null?v("ts:"):fmtMin(s.start).replace(" ","T"))}"><label>종료 시각 (비워 두면 계속 진행 중)</label><input type="datetime-local" data-draft="te:${s.sid}" value="${esc(v("te:")!==null?v("te:"):(s.end?fmtMin(s.end).replace(" ","T"):""))}"><div class="row" style="margin-top:8px"><button class="sm" data-act="saveTime" data-sid="${s.sid}">저장</button><button class="sm sec" data-act="cancelTime">취소</button></div><div class="k" style="margin-top:6px">원래 기록은 지워지지 않고 수정 내역으로 남습니다.</div></div>`;
 }
 function render(){
+  const gated=!ident&&!adminOn();
+  $("afterId").classList.toggle("hidden",gated);$("gateMsg").classList.toggle("hidden",!gated);
+  const idOk=n=>adminOn()||(!!ident&&nmz(n)===nmz(ident));
+  const mineS=x=>adminOn()||Array.from(x.by).some(idOk),mineP=p=>idOk(p.by);
   $("hLive").style.display=$("liveList").style.display=menuCfg.hide.live?"none":"";
   const ss=sessions();
   const live=ss.filter(s=>s.status==="live").sort((a,b)=>b.start-a.start);
     const all=ss.filter(s=>s.status==="done").sort((a,b)=>b.last-a.last);
   const ar=o=>o?"▾ ":"▸ ";
   $("hPlan").style.display=menuCfg.hide.plan?"none":"";$("planList").style.display=(menuCfg.hide.plan||!tgOpen.plan)?"none":"";
-  $("hPlan").textContent=ar(tgOpen.plan)+L("planH")+" ("+plans.length+")";
-  $("hAll").style.display=menuCfg.hide.all?"none":"";$("byFilter").style.display=$("doneList").style.display=(menuCfg.hide.all||!tgOpen.all)?"none":"";
-  $("hAll").textContent=ar(tgOpen.all)+(adminOn()?L("allH"):"지난 기록")+" ("+all.length+")";
+  $("hPlan").textContent=ar(tgOpen.plan)+L("planH")+" ("+plans.filter(mineP).length+")";
+  $("hAll").style.display=menuCfg.hide.all?"none":"";$("byFilter").style.display=$("doneList").style.display=(menuCfg.hide.all||!tgOpen.all)?"none":"";if(!adminOn())$("byFilter").style.display="none";
+  $("hAll").textContent=ar(tgOpen.all)+(adminOn()?L("allH"):"지난 기록")+" ("+all.filter(mineS).length+")";
   const names=Array.from(new Set(allEv().filter(e=>e.type!=="retime").map(e=>e.by).filter(Boolean)));
   if(filterBy&&!names.includes(filterBy))filterBy="";
   $("byFilter").innerHTML=names.length?['<span class="chip '+(filterBy?"":"on")+'" data-act="filter" data-v="">전체</span>'].concat(names.map(n=>'<span class="chip '+(filterBy===n?"on":"")+'" data-act="filter" data-v="'+esc(n)+'">'+esc(n)+'</span>')).join(""):"";
-  const vis=s=>!filterBy||s.by.has(filterBy);
+  const vis=s=>mineS(s)&&(!filterBy||s.by.has(filterBy));
   if(!adminOn())selDel.clear();else{const ids=new Set(all.map(x=>x.sid));Array.from(selDel).forEach(k=>{if(!ids.has(k))selDel.delete(k);});}
   const titleHtml=s=>editing===s.sid
     ?`<div class="row"><input data-draft="t:${s.sid}" value="${esc(drafts["t:"+s.sid]!==undefined?drafts["t:"+s.sid]:s.topic)}" style="flex:1"><button class="sm" data-act="saveTitle" data-sid="${s.sid}">저장</button><button class="sm sec" data-act="cancelEdit">취소</button></div>`
@@ -540,7 +547,7 @@ function render(){
     ${memos(s)}
     <textarea data-draft="m:${s.sid}" placeholder="${esc(L("memoPh"))}" style="margin-top:8px">${esc(drafts["m:"+s.sid]||"")}</textarea>
     ${adminOn()&&editTimeSid===s.sid?timeEditor(s):""}<div class="row" style="margin-top:8px"><button class="sec" data-act="memo" data-sid="${s.sid}">${esc(L("memoBtn"))}</button><button class="bad" data-act="end" data-sid="${s.sid}">${esc(L("end"))}</button>${adminOn()?`<button class="sm sec" data-act="editTime" data-sid="${s.sid}" style="margin-left:auto">시간 수정</button><button class="sm bad" data-act="del" data-sid="${s.sid}">삭제</button>`:""}</div></div>`).join("")||'<div class="k" style="margin:0 2px">없음</div>';
-  $("planList").innerHTML=plans.filter(p=>!filterBy||p.by===filterBy).slice().sort((a,b)=>String(a.planned).localeCompare(String(b.planned))).map(p=>{const s={sid:p.id,topic:p.topic};return `<div class="card">
+  $("planList").innerHTML=plans.filter(p=>mineP(p)&&(!filterBy||p.by===filterBy)).slice().sort((a,b)=>String(a.planned).localeCompare(String(b.planned))).map(p=>{const s={sid:p.id,topic:p.topic};return `<div class="card">
     <div class="row sp"><span class="pill plan">예정 ${esc(fmtP(p.planned)||"(시각 미정)")}${p.plannedEnd?" ~ "+esc(fmtP(p.plannedEnd).slice(p.planned&&p.plannedEnd.slice(0,10)===p.planned.slice(0,10)?11:0)):""}</span><span class="k">자동 시작·종료 예정</span></div>
     <div style="margin-top:4px">${titleHtml(s)}</div>
     <div class="k">${esc(p.who)}${extraTxt(p.x)?" · "+esc(extraTxt(p.x)):""}</div>
@@ -716,9 +723,11 @@ $("plannedList").addEventListener("input",chainTimes);$("plannedList").addEventL
 $("addTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .slot"),last=a[a.length-1],p=last.querySelectorAll(".pl");if(!p[0].value||!p[1].value){notify("앞 칸의 시작·종료 시각을 모두 입력해야 칸을 추가할 수 있습니다.");return;}const n=mkSlot(),ed=p[1].value.slice(0,10);n.querySelectorAll(".pl").forEach(x=>x.forceDate(ed));$("plannedList").appendChild(n);chainTimes();n.querySelector("input").focus();};
 $("delTime").onclick=()=>{const a=document.querySelectorAll("#plannedList .slot");if(a.length>1)a[a.length-1].remove();};
 $("by").addEventListener("change",()=>localStorage.setItem(BYKEY,$("by").value.trim()));
+$("by").addEventListener("input",()=>{if(ident&&nmz($("by").value)!==nmz(ident)){ident="";render();}});
 $("by").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("byOk").click();}});
 $("byOk").onclick=async()=>{
   const by=getBy();if(!by)return;
+  ident=by;render();
   if(!getCfg()){notify(by+"님으로 입력합니다.\n시트에 연결되어 있지 않아 이 기기에 입력한 기록만 보입니다.");render();return;}
   $("byOk").disabled=true;
   try{
@@ -1020,7 +1029,7 @@ function pdfTable(ss){
     if(sel("dur"))cols.push(["dur","소요 시간"]);
     const tm=o=>o.ms?esc(fmtMin(o.ms))+o.mark:"-";
     const cell=(c,s,i)=>{
-      const st=s.retimed?{ms:s.start,mark:adminOn()?"†":""}:T(s.startSrv,s.start),en=s.end?(s.rtEnd?{ms:s.end,mark:adminOn()?"†":""}:T(s.endSrv,s.end)):null;
+      const st=s.retimed?{ms:s.start,mark:""}:T(s.startSrv,s.start),en=s.end?(s.rtEnd?{ms:s.end,mark:""}:T(s.endSrv,s.end)):null;
       switch(c){
         case "no":return i+1;
         case "topic":return esc(s.topic)||"-";
@@ -1032,12 +1041,11 @@ function pdfTable(ss){
         default:return esc((s.extra||{})[c.slice(2)]||"-");
       }
     };
-    const anyDev=ss.some(s=>!s.retimed&&(!s.startSrv||(s.end&&!s.endSrv))),anyRt=adminOn()&&ss.some(s=>s.retimed);
+    const anyDev=ss.some(s=>!s.retimed&&(!s.startSrv||(s.end&&!s.endSrv))),anyRt=false;
     const span=cols.length;
     const rowsHtml=ss.map((s,i)=>{
       let h=`<tr>${cols.map(c=>`<td>${cell(c[0],s,i)}</td>`).join("")}</tr>`;
       if(sel("memo")&&s.memos.length)h+=`<tr class="sub"><td></td><td colspan="${span-1}">${s.memos.map(m=>`<div>메모 ${esc(fmtHM(m.srv||m.at))} (${esc(m.by)}) — ${esc(m.text)}</div>`).join("")}</td></tr>`;
-      if(s.retimed&&adminOn())h+=`<tr class="sub"><td></td><td colspan="${span-1}">† 관리자 수정 — 원래 시각 ${esc(fmtMin(s.origStart))} ~ ${s.origEnd?esc(fmtMin(s.origEnd)):"(종료 기록 없음)"}</td></tr>`;
       if(pdfSel.hash===true)h+=`<tr class="sub"><td></td><td colspan="${span-1}" class="hs">기록 번호(해시 앞 10자) ${s.hashes.map(x=>esc(sx(x))).join(" / ")}</td></tr>`;
       return h;
     });
