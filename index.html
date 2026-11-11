@@ -16,6 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{--bg:#f5f6f8;--card:#fff;--ink:#1d2330;--mute:#6b7384;--line:#e2e5ec;--accent:#2f62e0;--ok:#1f8a4c;--bad:#c0392b;--warn:#b7791f}
 *{box-sizing:border-box}
@@ -123,11 +124,24 @@ input,select,textarea{font-size:16px}
       </div>
       <datalist id="dl-who"></datalist><datalist id="dl-topic"></datalist>
       <div id="extraFields"></div>
-      <div id="plannedList"></div>
+      <div id="nowClock" style="text-align:center;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;margin:6px 0 4px"></div>
+      <div id="plannedList" class="hidden"></div>
       <div class="row" id="timeRow"><button class="sm sec" id="addTime" data-l="addTime">＋ 시간 추가</button><button class="sm sec" id="delTime">－ 마지막 칸 삭제</button></div>
+      <div class="card hidden" id="excelCard" style="margin:12px 0 0;background:#f6f8fc">
+        <b>엑셀로 예약 올리기</b>
+        <div class="k" style="margin:4px 0 6px">엑셀(.xlsx) 또는 .csv 파일을 올리면 적힌 예약을 한 번에 예정으로 등록합니다. 아래와 같은 모양으로 만들어 주세요.</div>
+        <div class="pvw"><table class="pv" style="min-width:0"><thead><tr><th>입력자 (선택)</th><th>날짜</th><th>시작</th><th>종료</th></tr></thead><tbody><tr><td>홍길동</td><td>11 12</td><td>930</td><td>1130</td></tr><tr><td>홍길동</td><td>11 13</td><td>1400</td><td>1550</td></tr><tr><td>홍길동</td><td>11/14</td><td>1724</td><td>1850</td></tr></tbody></table></div>
+        <div class="k" style="margin-top:6px">· 날짜는 <b>월 일</b>만 적습니다. (11 12 · 11/12 · 11월 12일 모두 가능, 연도는 올해로 처리)<br>· 시각은 24시간 숫자입니다. 오후 5시 24분은 <b>1724</b>, 3자리면 앞의 0을 생략합니다. (오전 9시 30분은 <b>930</b>)<br>· 첫 줄에 머리글(입력자·날짜·시작·종료)이 있어도 되고 없어도 됩니다. 입력자 열이 없으면 위에서 확인한 내 이름으로 등록합니다.<br>· 올리면 미리보기에서 겹치는 예약·지난 시각을 걸러내고, 등록 가능한 줄만 등록합니다.</div>
+        <div class="row" style="margin-top:8px">
+          <label style="flex:0 0 auto;margin:0;padding:9px 13px;border-radius:9px;background:var(--accent);color:#fff;font-size:15px;cursor:pointer">엑셀 파일 선택<input id="xlFile" type="file" accept=".xlsx,.xls,.csv" style="display:none"></label>
+          <button class="sec" id="xlSample" type="button">예시 파일 받기</button>
+          <button id="xlGo" class="hidden" type="button">등록</button>
+        </div>
+        <div id="xlPrev"></div>
+      </div>
       <div class="row" style="margin-top:12px">
-        <button class="sec" id="planBtn" data-l="plan">📅 예정으로 등록</button>
-        <button id="startBtn" data-l="start">▶ 지금 바로 시작</button>
+        <button class="sec" id="planBtn" data-l="plan">📅 예약하기</button>
+        <button id="startBtn" data-l="start">▶ 시작하기</button>
       </div>
     </div>
 
@@ -260,7 +274,7 @@ const lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
 const tgOpen={plan:false,all:false};
 let pdfKey=null,pdfLoaded=false,gateTarget="admin";
 let adminUntil=0,adminWas=false;const adminOn=()=>Date.now()<adminUntil;
-const LSPEC=[["title","화면 제목","기록 보관함"],["by","입력자 칸 이름","입력자 (내 이름)"],["newTop","새 항목 버튼","＋ 새 기록 / 시간 추가"],["newTitle","새 항목 창 제목","새 기록"],["who","대상 칸 이름","대상 (이니셜·번호 등)"],["topic","제목 칸 이름","제목"],["planned","일정 시각 칸 이름","일정 시각 (참고용 · 기록에는 저장되지 않음)"],["addTime","시간 추가 버튼","＋ 시간 추가"],["plan","예정 등록 버튼","📅 예정으로 등록"],["start","바로 시작 버튼","▶ 지금 바로 시작"],["live","진행 중 구역 이름","진행 중"],["planH","예정 구역 이름","예정"],["allH","전체 기록 구역 이름","전체 기록 (모든 입력자)"],["startPlan","예정 카드의 시작 버튼","▶ 지금 시작"],["end","종료 버튼","■ 종료"],["memoBtn","메모 저장 버튼","메모 저장"],["memoPh","메모 입력 안내","메모 (시각·입력자와 함께 기록)"],["cancelPlan","예정 취소 버튼","예정 취소"],["done","완료 표시","완료"],["pdfMenu","PDF 출력 메뉴 이름","PDF 출력"],["pdfTitle","PDF 제목","기록 확인서"],["pdfFile","PDF·백업 파일 이름 앞부분","기록"]];
+const LSPEC=[["title","화면 제목","기록 보관함"],["by","입력자 칸 이름","입력자 (내 이름)"],["newTop","새 항목 버튼","＋ 새 기록 / 시간 추가"],["newTitle","새 항목 창 제목","새 기록"],["who","대상 칸 이름","대상 (이니셜·번호 등)"],["topic","제목 칸 이름","제목"],["planned","일정 시각 칸 이름","일정 시각 (참고용 · 기록에는 저장되지 않음)"],["addTime","시간 추가 버튼","＋ 시간 추가"],["plan","예약 등록 버튼","📅 예약하기"],["start","시작 버튼","▶ 시작하기"],["live","진행 중 구역 이름","진행 중"],["planH","예정 구역 이름","예정"],["allH","전체 기록 구역 이름","전체 기록 (모든 입력자)"],["startPlan","예정 카드의 시작 버튼","▶ 지금 시작"],["end","종료 버튼","■ 종료"],["memoBtn","메모 저장 버튼","메모 저장"],["memoPh","메모 입력 안내","메모 (시각·입력자와 함께 기록)"],["cancelPlan","예정 취소 버튼","예정 취소"],["done","완료 표시","완료"],["pdfMenu","PDF 출력 메뉴 이름","PDF 출력"],["pdfTitle","PDF 제목","기록 확인서"],["pdfFile","PDF·백업 파일 이름 앞부분","기록"]];
 const DEFLB={};LSPEC.forEach(x=>DEFLB[x[0]]=x[2]);
 let LB=Object.assign({},DEFLB);
 try{Object.assign(LB,JSON.parse(localStorage.getItem("counsel_labels_v1")||"{}"));const old=localStorage.getItem("counsel_title_v1");if(old&&!localStorage.getItem("counsel_labels_v1"))LB.title=old;}catch(e){}
@@ -577,7 +591,9 @@ function softRender(){
   render();
 }
 document.addEventListener("focusout",()=>{if(pendingRender){pendingRender=false;setTimeout(render,50);}});
-function tick(){if(adminWas&&!adminOn()){adminWas=false;connDefault();render();}else if(adminOn())adminWas=true;
+const clockFmt=new Intl.DateTimeFormat("ko-KR",{timeZone:TZ,year:"numeric",month:"2-digit",day:"2-digit",weekday:"short",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false});
+function tick(){const nc=$("nowClock");if(nc)nc.textContent=clockFmt.format(new Date());
+  if(adminWas&&!adminOn()){adminWas=false;connDefault();render();}else if(adminOn())adminWas=true;
   document.querySelectorAll("[data-t]").forEach(el=>{el.textContent=dur(Date.now()-Number(el.dataset.t));});}
 document.addEventListener("input",e=>{const k=e.target.dataset&&e.target.dataset.draft;if(k)drafts[k]=e.target.value;});
 
@@ -667,8 +683,8 @@ function mkSlot(){
 
 /* ---------- 이미 예약된 시간 중복 방지 ---------- */
 // 이 기기의 예정 + (전체 보기 중이면) 다른 입력자의 예정을 모두 "예약된 시간"으로 본다.
-function busyList(){
-  const nm=v=>String(v||"").replace(/\s+/g,""),me=nm($("by").value);
+function busyList(who){
+  const nm=v=>String(v||"").replace(/\s+/g,""),me=nm(who===undefined?$("by").value:who);
   const out=plans.filter(p=>p.planned&&p.plannedEnd).map(p=>({id:p.id,s:p.planned,e:p.plannedEnd,by:p.by,topic:p.topic}));
   if(viewKey&&remoteEv.length){
     const have=new Set(out.map(x=>x.id)),map=new Map();
@@ -690,8 +706,8 @@ function busyList(){
   return out.filter(b=>nm(b.by)===me);
 }
 // s·e 중 하나만 있으면 그 시각이 예약 구간 안에 들어가는지, 둘 다 있으면 구간이 겹치는지 검사한다. (끝과 시작이 딱 맞닿는 것은 허용)
-function findConflict(s,e){
-  return busyList().find(b=>s&&e?(s<b.e&&b.s<e):s?(b.s<=s&&s<b.e):e?(b.s<e&&e<=b.e):false)||null;
+function findConflict(s,e,who){
+  return busyList(who).find(b=>s&&e?(s<b.e&&b.s<e):s?(b.s<=s&&s<b.e):e?(b.s<e&&e<=b.e):false)||null;
 }
 function conflictMsg(b){
   return "이미 예약된 시간입니다.\n"+fmtP(b.s)+" ~ "+fmtP(b.e).slice(b.s.slice(0,10)===b.e.slice(0,10)?11:0)+(b.live?" (진행 중)":" (예약)")+"\n다른 시간을 선택해 주세요.";
@@ -754,6 +770,104 @@ $("planBtn").onclick=async()=>{
     if(!saved||!saved.srv)allSynced=false;
   }
   savePlans();clearForm();render();notify(allSynced?"예정이 구글 서버에 저장되었습니다. 기기가 꺼져 있어도 자동 시작·종료됩니다.":"예정은 기기에 저장됐지만 서버 동기화가 안 됐습니다. 인터넷 연결 후 동기화되어야 기기가 꺼져도 자동 실행됩니다.");
+};
+/* ---------- 엑셀로 예약 올리기 ---------- */
+let xlRows=[];
+const p2=n=>String(n).padStart(2,"0");
+function xlDate(v){
+  if(v instanceof Date&&!isNaN(v)){const u=new Date(v.getTime()+43200000);return{m:u.getUTCMonth()+1,d:u.getUTCDate()};}
+  const t=String(v==null?"":v).trim();if(!t)return null;
+  const n=t.match(/\d+/g)||[];let m,d;
+  if(n.length===1&&/^\d{4}$/.test(t)){m=+t.slice(0,2);d=+t.slice(2);}
+  else if(n.length===2){m=+n[0];d=+n[1];}
+  else if(n.length===3){if(n[0].length===4){m=+n[1];d=+n[2];}else{m=+n[0];d=+n[1];}}
+  else return null;
+  return(m>=1&&m<=12&&d>=1&&d<=31)?{m,d}:null;
+}
+function xlTime(v){
+  let h,m;
+  if(typeof v==="number"&&v>0&&v<1){const t=Math.round(v*1440);h=Math.floor(t/60);m=t%60;}
+  else{
+    const t=String(v==null?"":v).trim();let k;
+    if((k=t.match(/^(\d{1,2}):(\d{2})/))){h=+k[1];m=+k[2];}
+    else if(/^\d{3,4}$/.test(t)){const q=t.padStart(4,"0");h=+q.slice(0,2);m=+q.slice(2);}
+    else return null;
+  }
+  return(h>=0&&h<=23&&m>=0&&m<=59)?p2(h)+":"+p2(m):null;
+}
+function xlParse(raw){
+  let rows=raw.map((r,i)=>({r,line:i+1})).filter(x=>x.r.some(c=>String(c).trim()!==""));
+  if(!rows.length){notify("읽을 내용이 없습니다.");return;}
+  let ci;
+  const first=rows[0].r.map(c=>String(c).replace(/\s+/g,""));
+  if(first.some(c=>/날짜|일자|시작|종료|입력자|이름/.test(c))){
+    const f=re=>first.findIndex(c=>re.test(c));
+    ci={name:f(/입력자|이름/),date:f(/날짜|일자/),s:f(/시작/),e:f(/종료|끝/)};
+    if(ci.date<0||ci.s<0||ci.e<0){notify("머리글에 날짜·시작·종료 열이 있어야 합니다.");return;}
+    rows=rows.slice(1);
+  }else{
+    const w=Math.max(...rows.map(x=>{let n=x.r.length;while(n&&String(x.r[n-1]).trim()==="")n--;return n;}));
+    ci=w>=4?{name:0,date:1,s:2,e:3}:{name:-1,date:0,s:1,e:2};
+  }
+  const nowS=fmtMin(Date.now()),nowMin=nowS.replace(" ","T"),y0=Number(nowS.slice(0,4)),cutoff=fmtMin(Date.now()-180*864e5).slice(0,10);
+  const me=ident||$("by").value.trim(),acc=[];xlRows=[];
+  rows.forEach(({r,line})=>{
+    const g=i=>i>=0?r[i]:"";
+    const by=(ci.name>=0?String(g(ci.name)).trim():"")||me;
+    const dv=g(ci.date),dt=xlDate(dv),t1=xlTime(g(ci.s)),t2=xlTime(g(ci.e));
+    const rec={line,by,date:dv instanceof Date?"":String(dv),time:"",ok:false,msg:""};
+    if(!by)rec.msg="입력자 없음";
+    else if(!dt)rec.msg="날짜를 읽을 수 없음 (월 일)";
+    else if(!t1||!t2)rec.msg="시각을 읽을 수 없음 (예: 930, 1724)";
+    else if(new Date(Date.UTC(y0,dt.m-1,dt.d)).getUTCMonth()!==dt.m-1)rec.msg="없는 날짜";
+    else{
+      let ds=y0+"-"+p2(dt.m)+"-"+p2(dt.d);if(ds<cutoff)ds=(y0+1)+"-"+p2(dt.m)+"-"+p2(dt.d);
+      rec.s=ds+"T"+t1;rec.e=ds+"T"+t2;rec.date=ds.slice(5).replace("-","/");rec.time=t1+" ~ "+t2;
+      const c=findConflict(rec.s,rec.e,by),o=acc.find(a=>nmz(a.by)===nmz(by)&&rec.s<a.e&&a.s<rec.e);
+      if(rec.e<=rec.s)rec.msg="종료가 시작보다 빠르거나 같음";
+      else if(rec.s<nowMin)rec.msg="이미 지난 시각";
+      else if(c)rec.msg="이미 예약됨 ("+fmtP(c.s).slice(5)+" ~ "+fmtP(c.e).slice(11)+")";
+      else if(o)rec.msg="엑셀 "+o.line+"줄과 겹침";
+      else{rec.ok=true;acc.push(rec);}
+    }
+    xlRows.push(rec);
+  });
+  xlShow();
+}
+function xlShow(){
+  const box=$("xlPrev"),go=$("xlGo");
+  if(!xlRows.length){box.innerHTML="";go.classList.add("hidden");return;}
+  const okN=xlRows.filter(r=>r.ok).length;
+  box.innerHTML='<div class="pvw" style="margin-top:8px"><table class="pv" style="min-width:0"><thead><tr><th>줄</th><th>입력자</th><th>날짜</th><th>시각</th><th>상태</th></tr></thead><tbody>'+xlRows.map(r=>`<tr><td>${r.line}</td><td>${esc(r.by)}</td><td>${esc(r.date)}</td><td>${esc(r.time)}</td><td class="${r.ok?"ok":"err"}">${r.ok?"등록 가능":esc(r.msg)}</td></tr>`).join("")+'</tbody></table></div><div class="k" style="margin-top:6px">등록 가능 '+okN+'건 · 제외 '+(xlRows.length-okN)+'건</div>';
+  go.textContent="등록 ("+okN+"건)";go.classList.remove("hidden");go.disabled=!okN;
+}
+$("xlFile").onchange=async ev=>{
+  const f=ev.target.files[0];ev.target.value="";if(!f)return;
+  if(!window.XLSX){notify("엑셀 읽기 도구를 불러오지 못했습니다.\n인터넷 연결을 확인하세요.");return;}
+  if(!ident&&!$("by").value.trim()){notify("입력자 이름을 먼저 적고 확인을 눌러 주세요.");return;}
+  try{
+    const wb=XLSX.read(await f.arrayBuffer(),{type:"array",cellDates:true});
+    xlParse(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:""}));
+  }catch(e){notify("파일을 읽지 못했습니다.");}
+};
+$("xlSample").onclick=()=>{
+  if(!window.XLSX){notify("엑셀 읽기 도구를 불러오지 못했습니다.");return;}
+  const md=n=>{const q=fmtMin(Date.now()+n*864e5);return Number(q.slice(5,7))+" "+Number(q.slice(8,10));};
+  const ws=XLSX.utils.aoa_to_sheet([["입력자","날짜","시작","종료"],["홍길동",md(1),930,1130],["홍길동",md(2),1400,1550],["홍길동",md(3),1724,1850]]);
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"예약");XLSX.writeFile(wb,"예약_올리기_예시.xlsx");
+};
+$("xlGo").onclick=async()=>{
+  const ok=xlRows.filter(r=>r.ok);if(!ok.length)return;
+  if(!confirm(ok.length+"건을 예정으로 등록할까요?"))return;
+  $("xlGo").disabled=true;let n=0,skip=0;
+  for(const r of ok){
+    if(findConflict(r.s,r.e,r.by)){skip++;continue;}
+    const p={id:newSid(),by:r.by,who:"",topic:"",planned:r.s,plannedEnd:r.e,x:{}};
+    if(!await append({type:"plan",sid:p.id,by:r.by,who:"",topic:"",planned:JSON.stringify(p)})){notify("등록 중 저장에 실패했습니다. ("+n+"건 등록됨)");break;}
+    await flush();plans.push(p);n++;
+  }
+  savePlans();xlRows=[];xlShow();render();
+  notify(n+"건을 예정으로 등록했습니다."+(skip?"\n겹쳐서 제외된 "+skip+"건":"")+"\n서버에 저장되면 기기가 꺼져 있어도 자동 시작·종료됩니다.");
 };
 $("startBtn").onclick=async()=>{
   const by=getBy();if(!by)return;const f=formVals();
@@ -838,10 +952,10 @@ $("main").addEventListener("click",async ev=>{
 
 /* ---------- admin ---------- */
 let advOn=false;try{localStorage.removeItem("counsel_adv_v1");}catch(e){}
-function applyAdv(){$("timeRow").classList.toggle("hidden",!advOn);$("planBtn").classList.toggle("hidden",!advOn);}
+function applyAdv(){$("excelCard").classList.toggle("hidden",!advOn);$("plannedList").classList.toggle("hidden",!advOn);$("timeRow").classList.toggle("hidden",!advOn);$("planBtn").classList.toggle("hidden",!advOn);}
 applyAdv();
 let aTaps=0,aT=null;
-$("newTitleB").onclick=()=>{aTaps++;clearTimeout(aT);aT=setTimeout(()=>aTaps=0,1500);if(aTaps>=5){aTaps=0;advOn=!advOn;applyAdv();notify(advOn?"시간 추가·예정 등록 버튼을 표시합니다.":"시간 추가·예정 등록 버튼을 숨겼습니다.");}};
+$("newTitleB").onclick=()=>{aTaps++;clearTimeout(aT);aT=setTimeout(()=>aTaps=0,1500);if(aTaps>=5){aTaps=0;advOn=!advOn;applyAdv();notify(advOn?"예약하기와 날짜·시간 입력을 표시합니다.":"예약하기와 날짜·시간 입력을 숨겼습니다.");}};
 let taps=0,tapT=null;
 $("title").onclick=()=>{taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,1500);if(taps>=5){taps=0;gate("admin");}};
 function download(name,blob){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}
