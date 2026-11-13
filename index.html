@@ -779,7 +779,7 @@ $("byOk").onclick=async()=>{
   try{
     await fetchMine();render();
     const ss=sessions().filter(x=>Array.from(x.by).some(n=>nmz(n)===nmz(by)));
-    notify(by+"님의 진행 상황을 불러왔습니다.\n진행 중 "+ss.filter(x=>x.status==="live").length+"건 · 예약 "+plans.filter(p=>nmz(p.by)===nmz(by)).length+"건");if(ss.some(x=>x.status==="live")){setTimeout(()=>{try{$("hLive").scrollIntoView({behavior:"smooth",block:"start"});}catch(e){}},80);}
+    notify(by+"님의 진행 상황을 불러왔습니다.\n진행 중 "+ss.filter(x=>x.status==="live").length+"건");if(ss.some(x=>x.status==="live")){setTimeout(()=>{try{$("hLive").scrollIntoView({behavior:"smooth",block:"start"});}catch(e){}},80);}
   }catch(e){notify("불러오지 못했습니다: "+(e.message||e));}
   $("byOk").disabled=false;
 };
@@ -992,7 +992,12 @@ function applyAdv(){$("advClose").classList.toggle("hidden",!advOn);$("excelCard
 applyAdv();
 $("advClose").onclick=()=>{advOn=false;applyAdv();render();notify("예약하기를 닫았습니다.");};
 let aTaps=0,aT=null;
-$("newTitleB").onclick=()=>{aTaps++;clearTimeout(aT);aT=setTimeout(()=>aTaps=0,1500);if(aTaps>=5){aTaps=0;advOn=!advOn;if(advOn)tgOpen.plan=true;applyAdv();render();notify(advOn?"예약하기와 날짜·시간 입력을 표시합니다.":"예약하기와 날짜·시간 입력을 숨겼습니다.");}};
+$("newTitleB").onclick=()=>{aTaps++;clearTimeout(aT);aT=setTimeout(()=>aTaps=0,1500);if(aTaps>=5){aTaps=0;advOn=!advOn;if(advOn)tgOpen.plan=true;applyAdv();render();
+    if(advOn){
+      const cnt=()=>plans.filter(p=>adminOn()||(ident&&nmz(p.by)===nmz(ident))).length;
+      if(getCfg()&&(ident||adminOn())){notify("예약하기를 표시합니다.\n예약을 불러오는 중…");fetchMine().then(()=>{render();notify("예약 "+cnt()+"건을 불러왔습니다.");}).catch(e=>{notify("예약을 불러오지 못했습니다: "+(e.message||e));});}
+      else notify("예약하기와 날짜·시간 입력을 표시합니다.");
+    }else notify("예약하기와 날짜·시간 입력을 숨겼습니다.");}};
 let taps=0,tapT=null;
 $("title").onclick=()=>{taps++;clearTimeout(tapT);tapT=setTimeout(()=>taps=0,1500);if(taps>=5){taps=0;gate("admin");}};
 function download(name,blob){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000);}
