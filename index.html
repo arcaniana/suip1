@@ -834,9 +834,12 @@ function xlParse(raw){
     else if(new Date(Date.UTC(y0,dt.m-1,dt.d)).getUTCMonth()!==dt.m-1)rec.msg="없는 날짜";
     else{
       let ds=y0+"-"+p2(dt.m)+"-"+p2(dt.d);if(ds<cutoff)ds=(y0+1)+"-"+p2(dt.m)+"-"+p2(dt.d);
-      rec.s=ds+"T"+t1;rec.e=ds+"T"+t2;rec.date=ds.slice(5).replace("-","/");rec.time=t1+" ~ "+t2;
+      // 종료 시각이 시작보다 이른 경우(예: 23:00 ~ 03:00)는 날짜를 넘긴 것이므로 종료를 다음 날로 본다.
+      const nextDay=d=>{const[y,m,dd]=d.split("-").map(Number),x=new Date(Date.UTC(y,m-1,dd+1));return x.getUTCFullYear()+"-"+p2(x.getUTCMonth()+1)+"-"+p2(x.getUTCDate());};
+      const over=t2<t1;
+      rec.s=ds+"T"+t1;rec.e=(over?nextDay(ds):ds)+"T"+t2;rec.date=ds.slice(5).replace("-","/");rec.time=t1+" ~ "+t2+(over?" (다음 날)":"");
       const c=findConflict(rec.s,rec.e,by),o=acc.find(a=>nmz(a.by)===nmz(by)&&rec.s<a.e&&a.s<rec.e);
-      if(rec.e<=rec.s)rec.msg="종료가 시작보다 빠르거나 같음";
+      if(rec.e<=rec.s)rec.msg="종료가 시작과 같음";
       else if(rec.s<nowMin)rec.msg="이미 지난 시각";
       else if(c)rec.msg="이미 예약됨 ("+fmtP(c.s).slice(5)+" ~ "+fmtP(c.e).slice(11)+")";
       else if(o)rec.msg="엑셀 "+o.line+"줄과 겹침";
